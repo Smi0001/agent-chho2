@@ -40,6 +40,8 @@ export interface RunOptions {
 export interface RunResult {
   text: string;
   usage: TokenUsage;
+  /** Provider-reported cost in USD, when available. */
+  costUsd?: number;
 }
 
 export interface ModelProvider {

@@ -10,6 +10,14 @@ upgrade (feature H).
 ## [Unreleased]
 
 ### Added
+- **claude-agent adapter is live** (milestone 2): `run()` drives Claude through the
+  Claude Agent SDK using the subscription token (`CLAUDE_CODE_OAUTH_TOKEN`), reporting
+  real token usage and cost. Single text turn, no tools yet (MCP next).
+- `agent-chho2 doctor` — validates config + credentials and runs one tiny live turn,
+  printing the reply, token usage, cost, and latency.
+- `.env` auto-loaded at startup (no dependency); `RunResult` now carries `costUsd`.
+
+### Added (scaffold)
 - Project scaffold: TypeScript, ESM, Apache-2.0.
 - `ModelProvider` interface with two adapters:
   - `claude-agent` — drives Claude via the Claude Agent SDK using a Claude Code

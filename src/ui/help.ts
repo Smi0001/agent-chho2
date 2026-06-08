@@ -22,6 +22,7 @@ export function renderHelp(roles: Role[]): string {
     "Usage:",
     "  agent-chho2                 Launch the interactive shell",
     "  agent-chho2 roles           List available roles and tasks",
+    "  agent-chho2 doctor          Check config + credentials with a tiny live turn",
     "  agent-chho2 help, --help    Show this help",
     "  agent-chho2 version, -v     Show version",
     "",
