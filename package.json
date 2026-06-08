@@ -1,0 +1,54 @@
+{
+  "name": "@smi0001/agent-chho2",
+  "version": "0.1.0",
+  "description": "छोटू — an interactive, role-based AI agent (Dev, QA, and more) that drives MCP servers (browser, Git hosting, Jira, Figma) to do real work. Provider-agnostic: Claude, OpenAI, Gemini, or local models.",
+  "author": "Shammi Hans",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "agent-chho2": "bin/cli.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "bin/",
+    "dist/",
+    "src/roles/builtin/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    ".chho2.example.json",
+    ".env.example"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json && node -e \"const{cpSync}=require('fs');cpSync('src/roles/builtin','dist/roles/builtin',{recursive:true})\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node bin/cli.js",
+    "roles": "tsx src/index.ts roles"
+  },
+  "keywords": [
+    "ai-agent",
+    "mcp",
+    "playwright",
+    "qa-automation",
+    "pull-request",
+    "jira",
+    "vercel-ai-sdk",
+    "claude",
+    "interactive-cli",
+    "developer-tools"
+  ],
+  "dependencies": {
+    "@clack/prompts": "^1.5.1",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}

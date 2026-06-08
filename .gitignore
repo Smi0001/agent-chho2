@@ -1,0 +1,24 @@
+# Secrets — NEVER commit
+.env
+.env.*
+!.env.example
+*.local
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Runtime data
+logs/
+*.jsonl
+.chho2/
+.cache/
+
+# OS / editor
+.DS_Store
+*.log
+.idea/
+.vscode/

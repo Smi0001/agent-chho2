@@ -1,0 +1,29 @@
+{
+  "$schema": "./schema/chho2.config.schema.json",
+  "provider": {
+    "id": "claude-agent",
+    "model": "claude-opus-4-8"
+  },
+  "providerAlternatives": {
+    "vercel-anthropic": { "id": "vercel", "vendor": "anthropic", "model": "claude-opus-4-8" },
+    "vercel-openai": { "id": "vercel", "vendor": "openai", "model": "gpt-4.1" },
+    "vercel-ollama": { "id": "vercel", "vendor": "ollama", "model": "qwen2.5-coder", "baseURL": "http://localhost:11434/v1" }
+  },
+  "outputStyle": "concise",
+  "permissions": {
+    "mode": "ask",
+    "promptTimeoutSeconds": 10,
+    "onTimeout": "wait"
+  },
+  "notify": {
+    "channel": "email",
+    "email": "you@example.com"
+  },
+  "audit": {
+    "dir": "~/.chho2/logs",
+    "format": "jsonl"
+  },
+  "roleDirs": [
+    "~/.chho2/roles"
+  ]
+}
