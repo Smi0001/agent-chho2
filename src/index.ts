@@ -43,6 +43,10 @@ export async function main(argv: string[]): Promise<void> {
     await runDoctor(config);
     return;
   }
+  if (cmd === "mcp") {
+    await runMcp(argv.slice(1));
+    return;
+  }
   if (cmd && cmd.startsWith("-")) {
     console.error(`Unknown option: ${cmd}\n`);
     console.log(renderHelp(roles));
@@ -92,6 +96,36 @@ async function runDoctor(config: Config): Promise<void> {
   } catch (err) {
     console.error(`  ✗ connectivity: ${(err as Error).message}`);
     process.exitCode = 1;
+  }
+}
+
+/** Connect an MCP capability and list its tools (deterministic connectivity check). */
+async function runMcp(args: string[]): Promise<void> {
+  const cap = args[0];
+  if (!cap) {
+    console.error("usage: agent-chho2 mcp <capability>   (e.g. playwright)");
+    process.exitCode = 1;
+    return;
+  }
+  const { McpManager } = await import("./mcp/manager.js");
+  const mgr = new McpManager();
+  try {
+    console.log(`Connecting MCP capability: ${cap} …`);
+    const { connected, unknown } = await mgr.connect([cap]);
+    if (unknown.length) {
+      console.error(`Unknown capability: ${unknown.join(", ")}`);
+      process.exitCode = 1;
+      return;
+    }
+    const tools = await mgr.listTools();
+    console.log(`Connected: ${connected.join(", ")}`);
+    console.log(`Tools (${tools.length}):`);
+    for (const t of tools) {
+      const desc = t.description ? " — " + t.description.split("\n")[0] : "";
+      console.log(`  ${t.name}${desc}`);
+    }
+  } finally {
+    await mgr.close();
   }
 }
 

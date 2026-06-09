@@ -10,6 +10,11 @@ upgrade (feature H).
 ## [Unreleased]
 
 ### Added
+- **MCP connectivity is live** (milestone 2): `McpManager` connects MCP servers over
+  stdio via `@modelcontextprotocol/sdk`, listing and calling namespaced tools
+  (`<server>.<tool>`). A capability registry maps role capabilities to server launch
+  configs (Playwright first). New `agent-chho2 mcp <capability>` command connects a
+  server and lists its tools — verified live against Playwright (23 tools).
 - **claude-agent adapter is live** (milestone 2): `run()` drives Claude through the
   Claude Agent SDK using the subscription token (`CLAUDE_CODE_OAUTH_TOKEN`), reporting
   real token usage and cost. Single text turn, no tools yet (MCP next).

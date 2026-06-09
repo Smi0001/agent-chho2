@@ -1,39 +1,73 @@
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import type { ToolDef } from "../providers/types.js";
+import { resolveCapabilities, type CapabilitySpec } from "./registry.js";
 
-export interface McpServerSpec {
-  name: string;
-  // stdio command / remote URL + OAuth details land in milestone 2
+interface Connection {
+  spec: CapabilitySpec;
+  client: Client;
 }
 
 /**
- * Manages MCP client connections for a role's capabilities. The orchestrator asks
- * for the merged tool list and routes tool calls here.
+ * Manages MCP client connections for a role's capabilities via stdio. Tools are
+ * namespaced as "<server>.<tool>" (e.g. "playwright.browser_navigate").
  *
- * Milestone 2 wires @modelcontextprotocol/sdk: stdio servers for local tools and
- * the OAuth loopback flow (system browser + localhost callback, tokens cached in
- * the OS keychain) for remote servers like Atlassian and Figma.
+ * The vercel adapter and the orchestrator route tool calls here. The claude-agent
+ * adapter hands MCP server specs to the Agent SDK directly (it owns its own loop),
+ * so both paths share this registry but connect differently.
  */
 export class McpManager {
-  private specs: McpServerSpec[] = [];
+  private connections: Connection[] = [];
 
-  async connect(capabilities: string[]): Promise<void> {
-    this.specs = capabilities.map((name) => ({ name }));
-    // TODO(milestone 2): start/connect servers; run OAuth where required.
+  async connect(capabilities: string[]): Promise<{ connected: string[]; unknown: string[] }> {
+    const { resolved, unknown } = resolveCapabilities(capabilities);
+    for (const spec of resolved) {
+      const transport = new StdioClientTransport({
+        command: spec.command,
+        args: spec.args,
+        env: process.env as Record<string, string>,
+        stderr: "ignore",
+      });
+      const client = new Client({ name: "agent-chho2", version: "0.1.0" }, { capabilities: {} });
+      await client.connect(transport);
+      this.connections.push({ spec, client });
+    }
+    return { connected: resolved.map((s) => s.name), unknown };
   }
 
   get connected(): string[] {
-    return this.specs.map((s) => s.name);
+    return this.connections.map((c) => c.spec.name);
   }
 
   async listTools(): Promise<ToolDef[]> {
-    return []; // populated from connected servers
+    const out: ToolDef[] = [];
+    for (const { spec, client } of this.connections) {
+      const res = await client.listTools();
+      for (const t of res.tools) {
+        out.push({
+          name: `${spec.name}.${t.name}`,
+          description: t.description,
+          inputSchema: t.inputSchema,
+        });
+      }
+    }
+    return out;
   }
 
-  async callTool(name: string, _args: unknown): Promise<unknown> {
-    throw new Error(`MCP tool "${name}" not available — connectors not wired yet (milestone 2).`);
+  async callTool(qualifiedName: string, args: unknown): Promise<unknown> {
+    const dot = qualifiedName.indexOf(".");
+    const server = dot === -1 ? qualifiedName : qualifiedName.slice(0, dot);
+    const tool = dot === -1 ? qualifiedName : qualifiedName.slice(dot + 1);
+    const conn = this.connections.find((c) => c.spec.name === server);
+    if (!conn) throw new Error(`No connected MCP server "${server}" for tool "${qualifiedName}".`);
+    return conn.client.callTool({
+      name: tool,
+      arguments: (args ?? {}) as Record<string, unknown>,
+    });
   }
 
   async close(): Promise<void> {
-    this.specs = [];
+    await Promise.allSettled(this.connections.map((c) => c.client.close()));
+    this.connections = [];
   }
 }
