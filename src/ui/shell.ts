@@ -65,17 +65,29 @@ export async function runInteractive(roles: Role[], config: Config): Promise<voi
       `Permissions:  ${config.permissions.mode}`,
       `MCP servers:  ${role.capabilities.join(", ") || "none"}`,
       task.steps.length ? `Steps:        ${task.steps.join("  →  ")}` : "Steps:        (open-ended)",
-      task.inputs.length ? `Inputs:       ${task.inputs.join(", ")}` : "",
     ]
       .filter(Boolean)
       .join("\n"),
-    "Ready to run",
+    "Selected",
   );
 
-  p.log.warn(
-    "Execution is not wired yet (milestone 2): connect MCP servers, drive the model, " +
-      "show step progress + token/memory, and gate outward writes. This scaffold proves " +
-      "the role → task selection flow end to end.",
-  );
-  p.outro("Done.");
+  const inputs: Record<string, string> = {};
+  for (const key of task.inputs) {
+    const val = await p.text({ message: `Input — ${key}:` });
+    if (p.isCancel(val)) {
+      p.cancel("Cancelled.");
+      return;
+    }
+    if (val) inputs[key] = String(val);
+  }
+
+  const go = await p.confirm({ message: `Run ${role.label} / ${task.label} now?` });
+  if (p.isCancel(go) || !go) {
+    p.cancel("Cancelled.");
+    return;
+  }
+
+  p.outro("Starting…");
+  const { runTask } = await import("../orchestrator.js");
+  await runTask({ role, task, inputs, config });
 }

@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig, loadDotEnv } from "./config/loader.js";
 import type { Config } from "./config/schema.js";
+import type { Role } from "./roles/types.js";
 import { loadRoles } from "./roles/registry.js";
 import { renderHelp, renderRoles } from "./ui/help.js";
 
@@ -45,6 +46,10 @@ export async function main(argv: string[]): Promise<void> {
   }
   if (cmd === "mcp") {
     await runMcp(argv.slice(1));
+    return;
+  }
+  if (cmd === "run") {
+    await runRun(argv.slice(1), roles, config);
     return;
   }
   if (cmd && cmd.startsWith("-")) {
@@ -97,6 +102,36 @@ async function runDoctor(config: Config): Promise<void> {
     console.error(`  ✗ connectivity: ${(err as Error).message}`);
     process.exitCode = 1;
   }
+}
+
+/** Run a role's task non-interactively: `run <role> <task> [key=value ...]`. */
+async function runRun(args: string[], roles: Role[], config: Config): Promise<void> {
+  const [roleId, taskId, ...rest] = args;
+  if (!roleId || !taskId) {
+    console.error("usage: agent-chho2 run <role> <task> [key=value ...]");
+    process.exitCode = 1;
+    return;
+  }
+  const role = roles.find((r) => r.id === roleId);
+  if (!role) {
+    console.error(`Unknown role: ${roleId}`);
+    process.exitCode = 1;
+    return;
+  }
+  const task = role.tasks.find((t) => t.id === taskId);
+  if (!task) {
+    console.error(`Unknown task "${taskId}" for role "${roleId}"`);
+    process.exitCode = 1;
+    return;
+  }
+  const inputs: Record<string, string> = {};
+  for (const tok of rest) {
+    const t = tok.startsWith("--") ? tok.slice(2) : tok;
+    const eq = t.indexOf("=");
+    if (eq > 0) inputs[t.slice(0, eq)] = t.slice(eq + 1);
+  }
+  const { runTask } = await import("./orchestrator.js");
+  await runTask({ role, task, inputs, config });
 }
 
 /** Connect an MCP capability and list its tools (deterministic connectivity check). */

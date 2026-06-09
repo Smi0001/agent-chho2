@@ -1,4 +1,4 @@
-import type { ModelProvider, Message, RunOptions, RunResult } from "./types.js";
+import type { ModelProvider, Message, RunOptions, RunResult, RunStep } from "./types.js";
 
 /**
  * Drives Claude via the Claude Agent SDK using a Claude Code subscription token
@@ -27,14 +27,44 @@ export class ClaudeAgentProvider implements ModelProvider {
     await this.ensureReady();
     const { query } = await import("@anthropic-ai/claude-agent-sdk");
 
+    const launches = opts.mcpServers ?? [];
+    const hasMcp = launches.length > 0;
+    const mcpServers = Object.fromEntries(
+      launches.map((s) => [
+        s.name,
+        // alwaysLoad: keep the server's tools in the prompt instead of deferring
+        // them behind ToolSearch (otherwise the agent wastes turns discovering them).
+        {
+          type: "stdio" as const,
+          command: s.command,
+          args: s.args,
+          env: envStrings(),
+          alwaysLoad: true,
+        },
+      ]),
+    );
+
+    const canUseTool = opts.permission
+      ? async (toolName: string, input: Record<string, unknown>) => {
+          const verdict = await opts.permission!(toolName, input);
+          return verdict.allow
+            ? ({ behavior: "allow", updatedInput: verdict.updatedInput ?? input } as const)
+            : ({ behavior: "deny", message: verdict.message ?? "denied by policy" } as const);
+        }
+      : undefined;
+
     const q = query({
       prompt: toPrompt(opts.messages),
       options: {
         model: this.model,
         systemPrompt: opts.system,
-        maxTurns: 1,
-        tools: [], // pure text turn — no Bash/file/MCP access yet
+        maxTurns: opts.maxTurns ?? (hasMcp ? 12 : 1),
         settingSources: [], // do not load the user's CLAUDE.md / settings
+        permissionMode: "default",
+        // Headless run: the agent must report blockers as text, not pause for input.
+        disallowedTools: ["AskUserQuestion"],
+        ...(hasMcp ? { mcpServers } : { tools: [] }),
+        ...(canUseTool ? { canUseTool } : {}),
       },
     });
 
@@ -48,8 +78,7 @@ export class ClaudeAgentProvider implements ModelProvider {
         break;
       }
       if (message.type === "assistant") {
-        const chunk = extractText(message);
-        if (chunk) opts.onStep?.({ kind: "text", text: chunk });
+        for (const step of extractSteps(message)) opts.onStep?.(step);
       } else if (message.type === "result") {
         const u = message.usage as { input_tokens?: number; output_tokens?: number };
         const input = u?.input_tokens ?? 0;
@@ -76,16 +105,26 @@ function toPrompt(messages: Message[]): string {
   return turns.map((m) => `${m.role}: ${m.content}`).join("\n\n");
 }
 
-/** Pull plain text out of an assistant SDK message defensively. */
-function extractText(message: unknown): string {
+/** Turn an assistant SDK message into progress steps (text + tool calls). */
+function extractSteps(message: unknown): RunStep[] {
   const content = (message as { message?: { content?: unknown } }).message?.content;
-  if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return "";
-  return content
-    .filter((b): b is { type: "text"; text: string } => {
-      const block = b as { type?: string; text?: unknown };
-      return block.type === "text" && typeof block.text === "string";
-    })
-    .map((b) => b.text)
-    .join("");
+  if (typeof content === "string") return content ? [{ kind: "text", text: content }] : [];
+  if (!Array.isArray(content)) return [];
+  const steps: RunStep[] = [];
+  for (const raw of content) {
+    const block = raw as { type?: string; text?: unknown; name?: unknown };
+    if (block.type === "text" && typeof block.text === "string" && block.text.trim()) {
+      steps.push({ kind: "text", text: block.text });
+    } else if (block.type === "tool_use" && typeof block.name === "string") {
+      steps.push({ kind: "tool-call", toolName: block.name });
+    }
+  }
+  return steps;
+}
+
+/** process.env with undefined values dropped (SDK wants Record<string,string>). */
+function envStrings(): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(process.env)) if (v !== undefined) out[k] = v;
+  return out;
 }

@@ -10,6 +10,15 @@ upgrade (feature H).
 ## [Unreleased]
 
 ### Added
+- **Orchestrator — first real end-to-end task** (milestone 2): `agent-chho2 run
+  <role> <task> [key=value …]` (and the interactive shell) now connect a role's MCP
+  capabilities, build the system prompt (persona + steps + outputStyle), drive Claude
+  multi-turn via the claude-agent adapter, gate every tool call (hard-deny RCE-class
+  and mutating built-ins; audit the rest), stream tool-call progress, and print a
+  token/cost/memory/time summary. Verified live: QA `verify-ticket` drove Playwright
+  against a real URL — navigate, snapshot, console, network — and returned a PASS
+  verdict with evidence. Agent SDK MCP tools set `alwaysLoad`; `AskUserQuestion`
+  disabled for headless runs.
 - **MCP connectivity is live** (milestone 2): `McpManager` connects MCP servers over
   stdio via `@modelcontextprotocol/sdk`, listing and calling namespaced tools
   (`<server>.<tool>`). A capability registry maps role capabilities to server launch

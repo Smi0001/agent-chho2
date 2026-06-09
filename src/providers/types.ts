@@ -27,12 +27,36 @@ export interface RunStep {
   toolName?: string;
 }
 
+/** An MCP server to launch for an agentic run (capability spec). */
+export interface McpServerLaunch {
+  name: string;
+  command: string;
+  args: string[];
+}
+
+export interface PermissionVerdict {
+  allow: boolean;
+  message?: string;
+  updatedInput?: Record<string, unknown>;
+}
+
+/** Consulted before each tool call; the orchestrator applies policy + audit here. */
+export type PermissionFn = (
+  toolName: string,
+  input: Record<string, unknown>,
+) => Promise<PermissionVerdict>;
+
 export interface RunOptions {
   system: string;
   messages: Message[];
-  tools: ToolDef[];
-  /** Invoke an MCP tool by name; supplied by the orchestrator. */
-  callTool: (name: string, args: unknown) => Promise<unknown>;
+  /** Manual tool list (vercel adapter / future). Unused by the agentic claude path. */
+  tools?: ToolDef[];
+  callTool?: (name: string, args: unknown) => Promise<unknown>;
+  /** MCP servers to connect for an agentic, multi-turn run. */
+  mcpServers?: McpServerLaunch[];
+  maxTurns?: number;
+  /** Permission gate for tool calls (deny-by-default for dangerous tools). */
+  permission?: PermissionFn;
   onStep?: (step: RunStep) => void;
   signal?: AbortSignal;
 }
