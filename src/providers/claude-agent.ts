@@ -71,6 +71,8 @@ export class ClaudeAgentProvider implements ModelProvider {
     let text = "";
     let usage: RunResult["usage"] = { input: 0, output: 0, total: 0 };
     let costUsd: number | undefined;
+    let contextWindow = 0;
+    let peakContext = 0;
 
     for await (const message of q) {
       if (opts.signal?.aborted) {
@@ -79,11 +81,43 @@ export class ClaudeAgentProvider implements ModelProvider {
       }
       if (message.type === "assistant") {
         for (const step of extractSteps(message)) opts.onStep?.(step);
+        // Track the largest context the model processed (for context-window %).
+        const tu = (message as { message?: { usage?: Record<string, number | undefined> } }).message
+          ?.usage;
+        if (tu) {
+          const ctx =
+            (tu.input_tokens ?? 0) +
+            (tu.cache_read_input_tokens ?? 0) +
+            (tu.cache_creation_input_tokens ?? 0);
+          if (ctx > peakContext) peakContext = ctx;
+        }
       } else if (message.type === "result") {
-        const u = message.usage as { input_tokens?: number; output_tokens?: number };
-        const input = u?.input_tokens ?? 0;
-        const output = u?.output_tokens ?? 0;
-        usage = { input, output, total: input + output };
+        // modelUsage is the authoritative CUMULATIVE per-model aggregate across all
+        // turns; message.usage is only the final turn. Sum modelUsage (fallback to
+        // message.usage if absent).
+        const acc = sumModelUsage(message.modelUsage);
+        if (acc.models > 0) {
+          usage = {
+            input: acc.input,
+            output: acc.output,
+            cacheRead: acc.cacheRead,
+            cacheCreation: acc.cacheCreation,
+            total: acc.input + acc.output + acc.cacheRead + acc.cacheCreation,
+          };
+          contextWindow = acc.contextWindow;
+        } else {
+          const u = message.usage as {
+            input_tokens?: number;
+            output_tokens?: number;
+            cache_read_input_tokens?: number;
+            cache_creation_input_tokens?: number;
+          };
+          const input = u?.input_tokens ?? 0;
+          const output = u?.output_tokens ?? 0;
+          const cacheRead = u?.cache_read_input_tokens ?? 0;
+          const cacheCreation = u?.cache_creation_input_tokens ?? 0;
+          usage = { input, output, cacheRead, cacheCreation, total: input + output + cacheRead + cacheCreation };
+        }
         costUsd = message.total_cost_usd;
         if (message.subtype === "success") {
           text = message.result;
@@ -94,7 +128,13 @@ export class ClaudeAgentProvider implements ModelProvider {
       }
     }
 
-    return { text, usage, costUsd };
+    return {
+      text,
+      usage,
+      costUsd,
+      contextWindow: contextWindow || undefined,
+      contextUsed: peakContext || undefined,
+    };
   }
 }
 
@@ -120,6 +160,39 @@ function extractSteps(message: unknown): RunStep[] {
     }
   }
   return steps;
+}
+
+interface ModelUsageLike {
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadInputTokens?: number;
+  cacheCreationInputTokens?: number;
+  contextWindow?: number;
+}
+
+/** Sum the per-model cumulative usage map from a result message. */
+function sumModelUsage(modelUsage: unknown): {
+  models: number;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheCreation: number;
+  contextWindow: number;
+} {
+  const models = Object.values((modelUsage as Record<string, ModelUsageLike>) ?? {});
+  let input = 0;
+  let output = 0;
+  let cacheRead = 0;
+  let cacheCreation = 0;
+  let contextWindow = 0;
+  for (const m of models) {
+    input += m.inputTokens ?? 0;
+    output += m.outputTokens ?? 0;
+    cacheRead += m.cacheReadInputTokens ?? 0;
+    cacheCreation += m.cacheCreationInputTokens ?? 0;
+    if ((m.contextWindow ?? 0) > contextWindow) contextWindow = m.contextWindow ?? 0;
+  }
+  return { models: models.length, input, output, cacheRead, cacheCreation, contextWindow };
 }
 
 /** process.env with undefined values dropped (SDK wants Record<string,string>). */

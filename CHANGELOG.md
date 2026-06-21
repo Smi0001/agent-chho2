@@ -10,6 +10,10 @@ upgrade (feature H).
 ## [Unreleased]
 
 ### Added
+- **Accurate token accounting** (milestone 2): token usage is now summed from the
+  Agent SDK's cumulative `modelUsage` across all turns (was only the final turn),
+  including cache read/write tokens, plus context-window utilization (`ctx %`). The
+  run summary and JSONL audit now show in/out/cache/total, cost, and ctx%.
 - **Orchestrator — first real end-to-end task** (milestone 2): `agent-chho2 run
   <role> <task> [key=value …]` (and the interactive shell) now connect a role's MCP
   capabilities, build the system prompt (persona + steps + outputStyle), drive Claude

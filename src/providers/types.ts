@@ -18,6 +18,8 @@ export interface ToolDef {
 export interface TokenUsage {
   input: number;
   output: number;
+  cacheRead?: number;
+  cacheCreation?: number;
   total: number;
 }
 
@@ -66,6 +68,10 @@ export interface RunResult {
   usage: TokenUsage;
   /** Provider-reported cost in USD, when available. */
   costUsd?: number;
+  /** Model context window size (tokens), when known. */
+  contextWindow?: number;
+  /** Peak context actually used in a turn (tokens) — for context-window %. */
+  contextUsed?: number;
 }
 
 export interface ModelProvider {

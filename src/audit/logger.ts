@@ -28,8 +28,15 @@ export interface AuditEvent {
   mode?: string;
   target?: string;
   payload?: unknown;
-  tokens?: { input: number; output: number; total: number };
+  tokens?: {
+    input: number;
+    output: number;
+    cacheRead?: number;
+    cacheCreation?: number;
+    total: number;
+  };
   costEst?: number;
+  ctxPct?: number;
   result?: "ok" | "error" | "skipped";
   error?: string;
 }

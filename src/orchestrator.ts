@@ -91,17 +91,27 @@ export async function runTask({ role, task, inputs, config }: RunTaskArgs): Prom
     const ms = Date.now() - startedMs;
     const mem = memSnapshot();
 
+    const u = result.usage;
+    const cacheStr =
+      u.cacheRead || u.cacheCreation ? ` (cache r${u.cacheRead ?? 0}/w${u.cacheCreation ?? 0})` : "";
+    const ctxPct =
+      result.contextWindow && result.contextUsed
+        ? Math.round((result.contextUsed / result.contextWindow) * 100)
+        : undefined;
+    const ctxStr =
+      ctxPct !== undefined ? ` · ctx ${ctxPct}% (${result.contextUsed}/${result.contextWindow})` : "";
+
     console.log("\n── result ──");
     console.log(result.text.trim() || "(no text returned)");
     console.log(
-      `\n◷ tokens in ${result.usage.input}, out ${result.usage.output}, total ${result.usage.total}` +
+      `\n◷ tokens in ${u.input}, out ${u.output}, total ${u.total}${cacheStr}` +
         (result.costUsd !== undefined ? ` · $${result.costUsd.toFixed(4)}` : "") +
-        ` · mem ${mem.rssMB}MB · ${ms} ms` +
+        ` · mem ${mem.rssMB}MB · ${ms} ms${ctxStr}` +
         (task.steps.length ? ` · ${stepNo} tool calls / ${task.steps.length} steps planned` : ""),
     );
     await audit.log({
       ts: isoNow(), role: role.id, task: task.id, action: "task.complete",
-      tokens: result.usage, costEst: result.costUsd, result: "ok",
+      tokens: result.usage, costEst: result.costUsd, ctxPct, result: "ok",
     });
     console.log(`audit: ${audit.path}`);
   } catch (err) {
