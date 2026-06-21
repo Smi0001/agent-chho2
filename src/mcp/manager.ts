@@ -1,7 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import type { ToolDef } from "../providers/types.js";
-import { resolveCapabilities, type CapabilitySpec } from "./registry.js";
+import { resolveCapabilities, missingRequiredEnv, type CapabilitySpec } from "./registry.js";
 
 interface Connection {
   spec: CapabilitySpec;
@@ -22,6 +22,13 @@ export class McpManager {
   async connect(capabilities: string[]): Promise<{ connected: string[]; unknown: string[] }> {
     const { resolved, unknown } = resolveCapabilities(capabilities);
     for (const spec of resolved) {
+      const missing = missingRequiredEnv(spec);
+      if (missing.length) {
+        throw new Error(
+          `MCP capability "${spec.name}" needs ${missing.join(", ")} in the environment ` +
+            `(set it in .env). Not found.`,
+        );
+      }
       const transport = new StdioClientTransport({
         command: spec.command,
         args: spec.args,

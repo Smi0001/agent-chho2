@@ -10,6 +10,12 @@ upgrade (feature H).
 ## [Unreleased]
 
 ### Added
+- **GitHub capability** (milestone 2): the `github` role capability now launches the
+  official GitHub MCP server (`ghcr.io/github/github-mcp-server`) in stdio mode via
+  Docker. The PAT (`GITHUB_PERSONAL_ACCESS_TOKEN`) is read from the environment and
+  forwarded to Docker by name, so it never appears in argv or process listings.
+  Capability specs gained a `requiresEnv` field: missing credentials now fail fast
+  with a clear message (or skip the capability in a run) instead of an opaque crash.
 - **Accurate token accounting** (milestone 2): token usage is now summed from the
   Agent SDK's cumulative `modelUsage` across all turns (was only the final turn),
   including cache read/write tokens, plus context-window utilization (`ctx %`). The

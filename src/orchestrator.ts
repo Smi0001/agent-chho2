@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Config } from "./config/schema.js";
 import type { Role, Task } from "./roles/types.js";
-import { resolveCapabilities } from "./mcp/registry.js";
+import { resolveCapabilities, missingRequiredEnv } from "./mcp/registry.js";
 import { createProvider } from "./providers/registry.js";
 import { AuditLogger, memSnapshot } from "./audit/logger.js";
 import type { PermissionVerdict, RunStep } from "./providers/types.js";
@@ -26,6 +26,16 @@ export async function runTask({ role, task, inputs, config }: RunTaskArgs): Prom
   if (unknown.length) {
     console.warn(`  (skipping unconfigured capabilities: ${unknown.join(", ")})`);
   }
+  // Drop capabilities whose required credentials are absent, so the run proceeds
+  // with the tools it can use rather than launching a server that cannot authenticate.
+  const ready = resolved.filter((spec) => {
+    const missing = missingRequiredEnv(spec);
+    if (missing.length) {
+      console.warn(`  (skipping ${spec.name}: missing ${missing.join(", ")} in env)`);
+      return false;
+    }
+    return true;
+  });
 
   const provider = await createProvider(config.provider);
   await provider.ensureReady();
@@ -35,7 +45,7 @@ export async function runTask({ role, task, inputs, config }: RunTaskArgs): Prom
     `  provider: ${config.provider.id} (${config.provider.model})  ·  outputStyle: ${config.outputStyle}`,
   );
   console.log(
-    `  MCP: ${resolved.map((r) => r.name).join(", ") || "none"}  ·  permissions: ${config.permissions.mode}\n`,
+    `  MCP: ${ready.map((r) => r.name).join(", ") || "none"}  ·  permissions: ${config.permissions.mode}\n`,
   );
 
   const permission = async (
@@ -83,7 +93,7 @@ export async function runTask({ role, task, inputs, config }: RunTaskArgs): Prom
     const result = await provider.run({
       system: buildSystemPrompt(role, task, config.outputStyle),
       messages: [{ role: "user", content: buildGoal(task, inputs) }],
-      mcpServers: resolved.map((r) => ({ name: r.name, command: r.command, args: r.args })),
+      mcpServers: ready.map((r) => ({ name: r.name, command: r.command, args: r.args })),
       maxTurns: 12,
       permission,
       onStep,
