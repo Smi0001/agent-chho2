@@ -61,3 +61,7 @@ permission gate allows-and-audits all non-builtin tools and does not yet enforce
 | `github.createComment`     | `github.add_issue_comment`                  |
 | `gitea.createPullRequest`  | `gitea.pull_request_write` (create action)  |
 | `gitlab.createMergeRequest`| `gitlab.create_merge_request` (to verify)   |
+| `atlassian.addComment`     | `atlassian.addCommentToJiraIssue`           |
+
+(The QA role's `gitea.issue_write` guardrail already uses the real tool name, so it
+needs no alignment.)

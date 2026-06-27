@@ -10,6 +10,14 @@ upgrade (feature H).
 ## [Unreleased]
 
 ### Added
+- **Atlassian capability** (milestone 2): the `atlassian` role capability (used by
+  QA to read Jira tickets and comment verdicts back) connects to Atlassian's remote
+  MCP through the `mcp-remote` stdio bridge, targeting the Streamable HTTP endpoint
+  (`/v1/mcp`); the HTTP+SSE endpoint is deprecated after 2026-06-30. OAuth runs in
+  the browser on first connect and is cached, so later runs are non-interactive.
+  Data-handling note: this routes Jira content (which may include personal data)
+  to a third-party endpoint outside ap-south-1; the QA role comments back only
+  after approval.
 - **Gitea capability** (milestone 2): the `gitea` role capability now launches the
   official Gitea MCP server (`docker.gitea.com/gitea-mcp-server`) in stdio mode via
   Docker. `GITEA_ACCESS_TOKEN` and `GITEA_HOST` are read from the environment and

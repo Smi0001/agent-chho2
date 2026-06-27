@@ -8,8 +8,12 @@ persona: |
   reproduce. You comment results back to Jira only after approval.
 capabilities:
   - playwright
+  # atlassian: remote MCP. Reads/writes Jira (and Confluence), which can contain
+  # personal data, via a third-party endpoint outside ap-south-1. Comment back
+  # only after approval (see persona). Review under DPDP / IRDAI before wider use.
   - atlassian
   - github
+  - gitea
 tasks:
   - id: verify-ticket
     label: Verify a Jira ticket against the running app
@@ -36,3 +40,6 @@ guardrails:
   allowWrites:
     - atlassian.addComment
     - github.createComment
+    # Real tool name (Gitea bundles comment management under issue_write). The two
+    # entries above are still camelCase placeholders pending alignment (see TODO.md).
+    - gitea.issue_write

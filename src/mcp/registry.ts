@@ -1,7 +1,9 @@
 // Maps a role "capability" name to an MCP server launch config. Playwright,
 // GitHub, and Gitea are stdio servers that authenticate with a token from the
 // environment (no OAuth). GitLab is the same shape and is planned (see TODO.md).
-// Atlassian/Figma land later; those remote/OAuth ones add a loopback auth flow.
+// Atlassian is a remote server reached through the `mcp-remote` stdio bridge,
+// which owns the OAuth loopback and token cache; chho2 needs no OAuth code for it.
+// Figma (remote) lands later on the same bridge pattern.
 
 export interface CapabilitySpec {
   name: string;
@@ -47,6 +49,17 @@ export const CAPABILITIES: Record<string, CapabilitySpec> = {
     ],
     requiresEnv: ["GITEA_ACCESS_TOKEN", "GITEA_HOST"],
     description: "Gitea: repos, issues, pull requests (official server via Docker)",
+  },
+  atlassian: {
+    name: "atlassian",
+    command: "npx",
+    // Atlassian's remote MCP reached via the mcp-remote stdio bridge. Targets the
+    // Streamable HTTP endpoint (/v1/mcp); the HTTP+SSE endpoint (/v1/sse) is
+    // deprecated after 2026-06-30. mcp-remote runs the OAuth loopback in a browser
+    // on first connect and caches the token, so later runs are non-interactive.
+    // No requiresEnv: auth is OAuth via the browser, not an environment token.
+    args: ["-y", "mcp-remote", "https://mcp.atlassian.com/v1/mcp"],
+    description: "Atlassian: Jira issues, Confluence pages, search (remote MCP via mcp-remote)",
   },
 };
 
