@@ -10,6 +10,11 @@ upgrade (feature H).
 ## [Unreleased]
 
 ### Added
+- **Gitea capability** (milestone 2): the `gitea` role capability now launches the
+  official Gitea MCP server (`docker.gitea.com/gitea-mcp-server`) in stdio mode via
+  Docker. `GITEA_ACCESS_TOKEN` and `GITEA_HOST` are read from the environment and
+  forwarded to Docker by name; `GITEA_HOST` is required since Gitea has no universal
+  SaaS endpoint. Verified live (53 tools). GitLab is planned (see TODO.md).
 - **GitHub capability** (milestone 2): the `github` role capability now launches the
   official GitHub MCP server (`ghcr.io/github/github-mcp-server`) in stdio mode via
   Docker. The PAT (`GITHUB_PERSONAL_ACCESS_TOKEN`) is read from the environment and

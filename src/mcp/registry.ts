@@ -1,7 +1,7 @@
-// Maps a role "capability" name to an MCP server launch config. Playwright and
-// GitHub are stdio servers that need no OAuth (GitHub authenticates with a PAT
-// from the environment). GitLab/Gitea/Atlassian/Figma land in later steps; the
-// remote/OAuth ones add a loopback auth flow on top of this.
+// Maps a role "capability" name to an MCP server launch config. Playwright,
+// GitHub, and Gitea are stdio servers that authenticate with a token from the
+// environment (no OAuth). GitLab is the same shape and is planned (see TODO.md).
+// Atlassian/Figma land later; those remote/OAuth ones add a loopback auth flow.
 
 export interface CapabilitySpec {
   name: string;
@@ -32,6 +32,21 @@ export const CAPABILITIES: Record<string, CapabilitySpec> = {
     args: ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"],
     requiresEnv: ["GITHUB_PERSONAL_ACCESS_TOKEN"],
     description: "GitHub: repos, issues, pull requests, code search (official server via Docker)",
+  },
+  gitea: {
+    name: "gitea",
+    command: "docker",
+    // Official Gitea MCP server (stdio). Token + host forwarded by name. Gitea is
+    // host-specific (no universal SaaS), so GITEA_HOST is required — set it to your
+    // self-hosted instance or the SaaS host (https://gitea.com).
+    args: [
+      "run", "-i", "--rm",
+      "-e", "GITEA_ACCESS_TOKEN",
+      "-e", "GITEA_HOST",
+      "docker.gitea.com/gitea-mcp-server",
+    ],
+    requiresEnv: ["GITEA_ACCESS_TOKEN", "GITEA_HOST"],
+    description: "Gitea: repos, issues, pull requests (official server via Docker)",
   },
 };
 
