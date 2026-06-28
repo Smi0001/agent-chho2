@@ -33,7 +33,9 @@ export class McpManager {
         command: spec.command,
         args: spec.args,
         env: process.env as Record<string, string>,
-        stderr: "ignore",
+        // Surface stderr for interactive-auth servers so the OAuth URL is visible
+        // when the browser cannot auto-open (headless/SSH). Token servers stay quiet.
+        stderr: spec.interactiveAuth ? "inherit" : "ignore",
       });
       const client = new Client({ name: "agent-chho2", version: "0.1.0" }, { capabilities: {} });
       await client.connect(transport);

@@ -65,3 +65,11 @@ permission gate allows-and-audits all non-builtin tools and does not yet enforce
 
 (The QA role's `gitea.issue_write` guardrail already uses the real tool name, so it
 needs no alignment.)
+
+## Per-server auth detection for interactive (OAuth) capabilities
+
+The run pre-flight (`src/mcp/auth.ts`) checks only whether mcp-remote has *any*
+cached token, not whether one covers the specific server. So if a different
+mcp-remote server was authed, a run could still proceed unauthenticated for the
+target and hit a browser prompt. Tighten by computing mcp-remote's per-server cache
+key (hash of the server URL), or by recording auth state per capability ourselves.

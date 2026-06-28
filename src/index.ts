@@ -48,6 +48,10 @@ export async function main(argv: string[]): Promise<void> {
     await runMcp(argv.slice(1));
     return;
   }
+  if (cmd === "auth") {
+    await runAuth(argv.slice(1));
+    return;
+  }
   if (cmd === "run") {
     await runRun(argv.slice(1), roles, config);
     return;
@@ -159,6 +163,47 @@ async function runMcp(args: string[]): Promise<void> {
       const desc = t.description ? " — " + t.description.split("\n")[0] : "";
       console.log(`  ${t.name}${desc}`);
     }
+  } finally {
+    await mgr.close();
+  }
+}
+
+/**
+ * Interactively authenticate a remote (OAuth) capability once. Connecting drives
+ * the mcp-remote browser flow (its stderr is surfaced, so the URL shows even when
+ * the browser cannot auto-open); the token is then cached for non-interactive runs.
+ */
+async function runAuth(args: string[]): Promise<void> {
+  const cap = args[0];
+  if (!cap) {
+    console.error("usage: agent-chho2 auth <capability>   (e.g. atlassian)");
+    process.exitCode = 1;
+    return;
+  }
+  const { CAPABILITIES } = await import("./mcp/registry.js");
+  const spec = CAPABILITIES[cap];
+  if (!spec) {
+    console.error(`Unknown capability: ${cap}`);
+    process.exitCode = 1;
+    return;
+  }
+  if (!spec.interactiveAuth) {
+    const via = spec.requiresEnv?.length ? ` via ${spec.requiresEnv.join(", ")} in .env` : "";
+    console.log(`"${cap}" does not use interactive login; it authenticates from the environment${via}. Nothing to do.`);
+    return;
+  }
+  const { McpManager } = await import("./mcp/manager.js");
+  const mgr = new McpManager();
+  console.log(`Authenticating "${cap}" …`);
+  console.log("A browser will open to authorize. If it does not, copy the URL printed below.");
+  console.log("The token is cached (~/.mcp-auth), so later runs are non-interactive.\n");
+  try {
+    await mgr.connect([cap]);
+    const tools = await mgr.listTools();
+    console.log(`\n✓ Authenticated "${cap}". ${tools.length} tools available; token cached.`);
+  } catch (err) {
+    console.error(`\n✗ auth failed: ${(err as Error).message}`);
+    process.exitCode = 1;
   } finally {
     await mgr.close();
   }

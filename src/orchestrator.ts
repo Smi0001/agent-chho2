@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Config } from "./config/schema.js";
 import type { Role, Task } from "./roles/types.js";
 import { resolveCapabilities, missingRequiredEnv } from "./mcp/registry.js";
+import { unauthedInteractiveCaps } from "./mcp/auth.js";
 import { createProvider } from "./providers/registry.js";
 import { AuditLogger, memSnapshot } from "./audit/logger.js";
 import type { PermissionVerdict, RunStep } from "./providers/types.js";
@@ -36,6 +37,25 @@ export async function runTask({ role, task, inputs, config }: RunTaskArgs): Prom
     }
     return true;
   });
+
+  // Pre-flight: a remote capability that authenticates via interactive OAuth must
+  // already have a cached token, or the run would hang waiting on a browser mid-task.
+  // Refuse early with the exact command to fix it.
+  const needAuth = unauthedInteractiveCaps(ready);
+  if (needAuth.length) {
+    const cmds = needAuth.map((n) => `agent-chho2 auth ${n}`).join("\n    ");
+    await audit.log({
+      ts: isoNow(), role: role.id, task: task.id, action: "task.preflight",
+      mode: config.permissions.mode, result: "error",
+      error: `not authenticated: ${needAuth.join(", ")}`,
+    });
+    console.error(
+      `\n✗ Not authenticated for: ${needAuth.join(", ")}. Authenticate once, then re-run:\n    ${cmds}`,
+    );
+    console.log(`audit: ${audit.path}`);
+    process.exitCode = 1;
+    return;
+  }
 
   const provider = await createProvider(config.provider);
   await provider.ensureReady();

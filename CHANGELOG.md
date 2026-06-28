@@ -10,6 +10,12 @@ upgrade (feature H).
 ## [Unreleased]
 
 ### Added
+- **Interactive auth for remote capabilities** (milestone 2): new `agent-chho2 auth
+  <capability>` command runs the one-time browser OAuth for remote servers (e.g.
+  `atlassian`) and caches the token. Capability specs gained an `interactiveAuth`
+  flag: such servers now surface stderr (so the authorization URL is visible on
+  headless machines), and a task run pre-flights for a cached token, refusing to
+  start with the exact `auth` command to run instead of hanging on a browser prompt.
 - **Atlassian capability** (milestone 2): the `atlassian` role capability (used by
   QA to read Jira tickets and comment verdicts back) connects to Atlassian's remote
   MCP through the `mcp-remote` stdio bridge, targeting the Streamable HTTP endpoint

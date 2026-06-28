@@ -16,6 +16,13 @@ export interface CapabilitySpec {
    * opaque server crash. Secrets live only in the environment, never in this config.
    */
   requiresEnv?: string[];
+  /**
+   * This server authenticates with an interactive browser OAuth flow (via the
+   * mcp-remote bridge) rather than an environment token. Its stderr is surfaced so
+   * the authorization URL is visible on headless machines, and a run pre-flights
+   * for a cached token (see `agent-chho2 auth <capability>`).
+   */
+  interactiveAuth?: boolean;
 }
 
 export const CAPABILITIES: Record<string, CapabilitySpec> = {
@@ -59,6 +66,7 @@ export const CAPABILITIES: Record<string, CapabilitySpec> = {
     // on first connect and caches the token, so later runs are non-interactive.
     // No requiresEnv: auth is OAuth via the browser, not an environment token.
     args: ["-y", "mcp-remote", "https://mcp.atlassian.com/v1/mcp"],
+    interactiveAuth: true,
     description: "Atlassian: Jira issues, Confluence pages, search (remote MCP via mcp-remote)",
   },
 };
