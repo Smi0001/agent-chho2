@@ -17,6 +17,11 @@ logs/
 .chho2/
 .cache/
 
+# Local run artifacts / scratch (not for the repo)
+.playwright-mcp/
+evidence-*.png
+ss/
+
 # OS / editor
 .DS_Store
 *.log
