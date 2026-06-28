@@ -36,6 +36,22 @@ tasks:
     inputs:
       - flowFile
       - appUrl
+  - id: update-comment
+    label: Add or update a comment on a Jira ticket
+    description: >-
+      Update an existing Jira comment (or add a new one) so it includes the
+      requested text, preserving any existing content. Running this task is the
+      explicit approval to write; perform the update.
+    capabilities:
+      - atlassian
+    steps:
+      - Read the ticket and, if a commentId is given, the current text of that comment
+      - Update the comment so it includes the requested text, keeping existing content intact
+      - Report the final comment body
+    inputs:
+      - jiraKey
+      - commentId
+      - text
 guardrails:
   allowWrites:
     - atlassian.addComment
