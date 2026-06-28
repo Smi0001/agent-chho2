@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { missingRequiredEnv, MCP_REMOTE_VERSION, type CapabilitySpec } from "./registry.js";
-import { mcpRemoteAuthExists } from "./auth.js";
+import { interactiveAuthCached } from "./auth.js";
 
 export interface Check {
   label: string;
@@ -34,7 +34,7 @@ export function diagnose(spec: CapabilitySpec): Check[] {
   }
 
   if (spec.interactiveAuth) {
-    const authed = mcpRemoteAuthExists();
+    const authed = interactiveAuthCached(spec);
     checks.push({
       label: "auth",
       status: authed ? "ok" : "warn",

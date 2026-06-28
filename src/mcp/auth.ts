@@ -3,21 +3,23 @@ import { homedir } from "node:os";
 import path from "node:path";
 import type { CapabilitySpec } from "./registry.js";
 
-// mcp-remote caches OAuth tokens here after a successful interactive login.
-const AUTH_DIR = path.join(homedir(), ".mcp-auth");
+// mcp-remote caches OAuth tokens under ~/.mcp-auth/, in a subdir it names from its
+// OWN internal version constant (observed: mcp-remote-0.1.37) — NOT the npm version
+// we pin. Verified against the 0.1.38 release: its dist still hardcodes 0.1.37, so
+// bumping the npm pin does not change the cache dir. We therefore detect tokens
+// version-agnostically by scanning the tree; keying off our pinned npm version would
+// never match the dir mcp-remote actually writes. Within a version dir, token files
+// are named by a hash of the server URL (getServerUrlHash); per-URL keying is the
+// refinement worth adding later (see TODO.md).
+const AUTH_BASE = path.join(homedir(), ".mcp-auth");
 
 /**
- * True if mcp-remote has any cached OAuth token on disk.
- *
- * Coarse on purpose: it confirms an interactive auth has completed at least once,
- * not that a token covers a specific server (mcp-remote keys its cache by a hash of
- * the server URL that we do not recompute here, to avoid coupling to its internals).
- * Good enough to catch the common "never authenticated" case before a headless run;
- * a per-server check is tracked in TODO.md.
+ * True if mcp-remote has any cached OAuth token on disk. Version-agnostic (see the
+ * note above). The spec is accepted for a future per-URL check but is not used yet.
  */
-export function mcpRemoteAuthExists(): boolean {
-  if (!existsSync(AUTH_DIR)) return false;
-  return hasTokenFile(AUTH_DIR, 2);
+export function interactiveAuthCached(_spec: CapabilitySpec): boolean {
+  if (!existsSync(AUTH_BASE)) return false;
+  return hasTokenFile(AUTH_BASE, 2);
 }
 
 function hasTokenFile(dir: string, depth: number): boolean {
@@ -42,10 +44,8 @@ function hasTokenFile(dir: string, depth: number): boolean {
 
 /**
  * Names of interactive-auth capabilities that have no cached token yet. Empty when
- * none of the given specs need interactive auth, or when a token cache exists.
+ * none of the given specs need interactive auth.
  */
 export function unauthedInteractiveCaps(specs: CapabilitySpec[]): string[] {
-  const needAuth = specs.filter((s) => s.interactiveAuth);
-  if (needAuth.length === 0 || mcpRemoteAuthExists()) return [];
-  return needAuth.map((s) => s.name);
+  return specs.filter((s) => s.interactiveAuth && !interactiveAuthCached(s)).map((s) => s.name);
 }

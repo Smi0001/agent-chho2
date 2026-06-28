@@ -25,9 +25,10 @@ export interface CapabilitySpec {
   interactiveAuth?: boolean;
 }
 
-// Pinned exact (not floating) for a stable mcp-remote auth cache and reproducible
-// runs. Updates are deliberate: `agent-chho2 troubleshoot` reports when a newer
-// version exists, and bumping it forces a one-time re-auth (cache is version-keyed).
+// Pinned exact (not floating) for reproducible runs and supply-chain control.
+// Updates are deliberate: `agent-chho2 troubleshoot` reports when a newer version
+// exists. (mcp-remote keys its auth cache by its own internal version constant, not
+// this npm version, so a bump does not by itself force a re-auth.)
 export const MCP_REMOTE_VERSION = "0.1.37";
 
 export const CAPABILITIES: Record<string, CapabilitySpec> = {

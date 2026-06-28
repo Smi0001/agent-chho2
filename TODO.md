@@ -66,10 +66,13 @@ permission gate allows-and-audits all non-builtin tools and does not yet enforce
 (The QA role's `gitea.issue_write` guardrail already uses the real tool name, so it
 needs no alignment.)
 
-## Per-server auth detection for interactive (OAuth) capabilities
+## Per-URL auth detection for interactive (OAuth) capabilities
 
-The run pre-flight (`src/mcp/auth.ts`) checks only whether mcp-remote has *any*
-cached token, not whether one covers the specific server. So if a different
-mcp-remote server was authed, a run could still proceed unauthenticated for the
-target and hit a browser prompt. Tighten by computing mcp-remote's per-server cache
-key (hash of the server URL), or by recording auth state per capability ourselves.
+The auth check (`src/mcp/auth.ts`) is version-agnostic: it scans `~/.mcp-auth` for
+any cached token. (We tried keying it to the pinned npm version, but mcp-remote
+names its cache dir from its own internal version constant — still `0.1.37` in the
+`0.1.38` release — so npm-version keying never matched the real dir and gave false
+negatives.) It is not keyed by the specific server URL: any cached token counts.
+Exact while only one mcp-remote server is configured (currently atlassian); becomes
+loose with a second (e.g. figma). Tighten by computing mcp-remote's per-URL key the
+way it does (`getServerUrlHash` of the server URL).
