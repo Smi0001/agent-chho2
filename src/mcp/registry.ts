@@ -25,6 +25,11 @@ export interface CapabilitySpec {
   interactiveAuth?: boolean;
 }
 
+// Pinned exact (not floating) for a stable mcp-remote auth cache and reproducible
+// runs. Updates are deliberate: `agent-chho2 troubleshoot` reports when a newer
+// version exists, and bumping it forces a one-time re-auth (cache is version-keyed).
+export const MCP_REMOTE_VERSION = "0.1.37";
+
 export const CAPABILITIES: Record<string, CapabilitySpec> = {
   playwright: {
     name: "playwright",
@@ -65,7 +70,7 @@ export const CAPABILITIES: Record<string, CapabilitySpec> = {
     // deprecated after 2026-06-30. mcp-remote runs the OAuth loopback in a browser
     // on first connect and caches the token, so later runs are non-interactive.
     // No requiresEnv: auth is OAuth via the browser, not an environment token.
-    args: ["-y", "mcp-remote", "https://mcp.atlassian.com/v1/mcp"],
+    args: ["-y", `mcp-remote@${MCP_REMOTE_VERSION}`, "https://mcp.atlassian.com/v1/mcp"],
     interactiveAuth: true,
     description: "Atlassian: Jira issues, Confluence pages, search (remote MCP via mcp-remote)",
   },

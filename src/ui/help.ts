@@ -25,6 +25,7 @@ export function renderHelp(roles: Role[]): string {
     "  agent-chho2 doctor          Check config + credentials with a tiny live turn",
     "  agent-chho2 mcp <cap>       Connect an MCP capability and list its tools",
     "  agent-chho2 auth <cap>      Log in to a remote capability once (e.g. atlassian)",
+    "  agent-chho2 troubleshoot [cap]  Health-check capabilities (deps, auth, versions)",
     "  agent-chho2 run <r> <t>     Run a role's task (key=value inputs)",
     "  agent-chho2 help, --help    Show this help",
     "  agent-chho2 version, -v     Show version",

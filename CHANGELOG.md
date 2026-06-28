@@ -10,6 +10,12 @@ upgrade (feature H).
 ## [Unreleased]
 
 ### Added
+- **Pinned mcp-remote + `troubleshoot` command** (milestone 2): the Atlassian
+  capability now pins `mcp-remote` to an exact version (`MCP_REMOTE_VERSION`) for a
+  stable auth cache and reproducible runs. New `agent-chho2 troubleshoot [capability]`
+  read-only health check reports launcher presence, Docker daemon reachability,
+  credentials/auth state, and pinned-vs-latest version drift. It does not connect,
+  so it never triggers an interactive OAuth flow; a bump stays a deliberate action.
 - **Interactive auth for remote capabilities** (milestone 2): new `agent-chho2 auth
   <capability>` command runs the one-time browser OAuth for remote servers (e.g.
   `atlassian`) and caches the token. Capability specs gained an `interactiveAuth`

@@ -52,6 +52,10 @@ export async function main(argv: string[]): Promise<void> {
     await runAuth(argv.slice(1));
     return;
   }
+  if (cmd === "troubleshoot") {
+    await runTroubleshoot(argv.slice(1));
+    return;
+  }
   if (cmd === "run") {
     await runRun(argv.slice(1), roles, config);
     return;
@@ -207,6 +211,33 @@ async function runAuth(args: string[]): Promise<void> {
   } finally {
     await mgr.close();
   }
+}
+
+/**
+ * Read-only health check for one capability (or all): launcher present, docker
+ * daemon up, credentials/auth in place, and mcp-remote version drift. Does not
+ * connect, so it never triggers an interactive OAuth flow.
+ */
+async function runTroubleshoot(args: string[]): Promise<void> {
+  const { CAPABILITIES } = await import("./mcp/registry.js");
+  const { diagnose } = await import("./mcp/troubleshoot.js");
+  const cap = args[0];
+  if (cap && !CAPABILITIES[cap]) {
+    console.error(`Unknown capability: ${cap}`);
+    process.exitCode = 1;
+    return;
+  }
+  const names = cap ? [cap] : Object.keys(CAPABILITIES);
+  let anyFail = false;
+  for (const name of names) {
+    console.log(`\ntroubleshoot: ${name}`);
+    for (const c of diagnose(CAPABILITIES[name]!)) {
+      const mark = c.status === "ok" ? "✓" : c.status === "warn" ? "!" : "✗";
+      if (c.status === "fail") anyFail = true;
+      console.log(`  ${mark} ${c.label.padEnd(14)} ${c.detail}`);
+    }
+  }
+  if (anyFail) process.exitCode = 1;
 }
 
 // Support `tsx src/index.ts ...` direct execution (bin/cli.js calls main() itself).
