@@ -33,6 +33,22 @@ tasks:
       - Open the PR
     inputs:
       - repo
+  - id: compare-urls
+    label: Compare two URLs (e.g. production vs UAT/local) to debug differences
+    description: >-
+      Open both URLs in the browser and capture each one's rendered state, console
+      errors, and network/API behaviour, then report the differences that could
+      explain a bug. Read-only investigation; makes no code or remote changes.
+    capabilities:
+      - playwright
+    steps:
+      - Open prodUrl and capture page state, console errors, and key network/API calls
+      - Open compareUrl and capture the same
+      - Diff the two captures and identify meaningful differences
+      - Report the differences with likely causes
+    inputs:
+      - prodUrl
+      - compareUrl
 guardrails:
   # Real MCP tool names (must match "<server>.<tool>" as the gate sees them).
   # gitlab.* is provisional until the gitlab capability is re-added (see TODO.md).
