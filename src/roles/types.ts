@@ -8,6 +8,12 @@ export const TaskSchema = z.object({
   steps: z.array(z.string()).default([]),
   /** Named inputs the shell will prompt for. */
   inputs: z.array(z.string()).default([]),
+  /**
+   * Optional subset of the role's capabilities this task actually needs. When set,
+   * only these MCP servers are connected for the run (fewer servers to start, fewer
+   * tools in context). Defaults to the role's full capability set when omitted.
+   */
+  capabilities: z.array(z.string()).optional(),
 });
 export type Task = z.infer<typeof TaskSchema>;
 

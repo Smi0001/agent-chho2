@@ -32,14 +32,17 @@ export class ClaudeAgentProvider implements ModelProvider {
     const mcpServers = Object.fromEntries(
       launches.map((s) => [
         s.name,
-        // alwaysLoad: keep the server's tools in the prompt instead of deferring
-        // them behind ToolSearch (otherwise the agent wastes turns discovering them).
+        // No alwaysLoad. It would force the tools into the turn-1 prompt, but as a
+        // side effect blocks startup on connect capped at the SDK's 5s connect
+        // timeout — and all our servers can exceed that on cold start (mcp-remote
+        // OAuth, Docker image run, npx fetch), so past the cap the tools never load.
+        // Letting them defer means the model discovers them via tool search once each
+        // server connects in the background: a few extra turns, but the tools exist.
         {
           type: "stdio" as const,
           command: s.command,
           args: s.args,
           env: envStrings(),
-          alwaysLoad: true,
         },
       ]),
     );

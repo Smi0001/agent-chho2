@@ -76,3 +76,19 @@ negatives.) It is not keyed by the specific server URL: any cached token counts.
 Exact while only one mcp-remote server is configured (currently atlassian); becomes
 loose with a second (e.g. figma). Tighten by computing mcp-remote's per-URL key the
 way it does (`getServerUrlHash` of the server URL).
+
+## claude-agent run path: MCP tool loading
+
+Fixed: removed `alwaysLoad` from the claude-agent provider's mcpServers config
+(`src/providers/claude-agent.ts`). `alwaysLoad` blocks startup on connect, capped at
+the SDK's 5s connect timeout (per sdk.d.ts); our servers (mcp-remote OAuth, Docker
+cold start, npx fetch) exceed it, so their tools never loaded in the `run` path even
+though the standalone `mcp`/`auth` commands worked. Tools now defer and surface via
+tool search after the background connect.
+
+Follow-up (not done): for remote servers (atlassian, later figma) the claude-agent
+provider could use the SDK's NATIVE remote transport (`type: "http"`, `url:
+.../v1/mcp`) instead of the mcp-remote stdio bridge, letting the SDK own the
+connection and OAuth (its SDKControlMcpAuthenticate* machinery). Avoids the bridge
+subprocess in the run path; needs wiring the SDK's MCP auth control requests in the
+headless `query()` call.

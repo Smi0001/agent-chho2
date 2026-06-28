@@ -23,7 +23,10 @@ export async function runTask({ role, task, inputs, config }: RunTaskArgs): Prom
   const runId = `${isoNow().replace(/[:.]/g, "-")}-${randomUUID().slice(0, 8)}`;
   const audit = new AuditLogger(config.audit.dir, runId);
 
-  const { resolved, unknown } = resolveCapabilities(role.capabilities);
+  // A task may scope itself to a subset of the role's capabilities so the run does
+  // not start MCP servers (and load tools) it will never use.
+  const capabilities = task.capabilities ?? role.capabilities;
+  const { resolved, unknown } = resolveCapabilities(capabilities);
   if (unknown.length) {
     console.warn(`  (skipping unconfigured capabilities: ${unknown.join(", ")})`);
   }
@@ -114,7 +117,7 @@ export async function runTask({ role, task, inputs, config }: RunTaskArgs): Prom
       system: buildSystemPrompt(role, task, config.outputStyle),
       messages: [{ role: "user", content: buildGoal(task, inputs) }],
       mcpServers: ready.map((r) => ({ name: r.name, command: r.command, args: r.args })),
-      maxTurns: 12,
+      maxTurns: 25,
       permission,
       onStep,
     });
