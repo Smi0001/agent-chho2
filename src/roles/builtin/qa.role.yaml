@@ -53,9 +53,10 @@ tasks:
       - commentId
       - text
 guardrails:
+  # Real MCP tool names (must match what the gate sees: "<server>.<tool>"). These are
+  # the comment-back writes QA performs; under permissions.mode=allowlist they are
+  # pre-approved, anything else prompts.
   allowWrites:
-    - atlassian.addComment
-    - github.createComment
-    # Real tool name (Gitea bundles comment management under issue_write). The two
-    # entries above are still camelCase placeholders pending alignment (see TODO.md).
+    - atlassian.addCommentToJiraIssue
+    - github.add_issue_comment
     - gitea.issue_write

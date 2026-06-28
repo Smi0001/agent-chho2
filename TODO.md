@@ -48,12 +48,14 @@ Open decisions for the integration pass:
   GitLab's own MCP is a remote/OAuth offering, not a stdio server.
 - Live-verify with a real token, then record the actual tool names.
 
-## Cross-capability: role guardrail names do not match server tool names
+## Cross-capability: role guardrail name alignment — DONE
 
-`guardrails.allowWrites` in the role YAMLs use camelCase placeholders that do not
-match the real (snake_case) MCP tool names. Harmless today because the orchestrator
-permission gate allows-and-audits all non-builtin tools and does not yet enforce
-`allowWrites`. Must be aligned when write-guardrail enforcement is built.
+Write-guardrail enforcement is wired (`isOutwardWrite` + `decide()` in the
+orchestrator), and the qa/dev role `allowWrites` were aligned to real
+"<server>.<tool>" names. The table below records the mapping applied.
+`gitlab.create_merge_request` is provisional until the gitlab capability is re-added
+and verified live. Follow-ups: persist interactive write-approvals across runs (they
+are session-scoped today), and consider tool-annotation-based write classification.
 
 | Role YAML guardrail        | Actual server tool                          |
 | -------------------------- | ------------------------------------------- |
@@ -86,9 +88,9 @@ cold start, npx fetch) exceed it, so their tools never loaded in the `run` path 
 though the standalone `mcp`/`auth` commands worked. Tools now defer and surface via
 tool search after the background connect.
 
-Follow-up (not done): for remote servers (atlassian, later figma) the claude-agent
-provider could use the SDK's NATIVE remote transport (`type: "http"`, `url:
-.../v1/mcp`) instead of the mcp-remote stdio bridge, letting the SDK own the
-connection and OAuth (its SDKControlMcpAuthenticate* machinery). Avoids the bridge
-subprocess in the run path; needs wiring the SDK's MCP auth control requests in the
-headless `query()` call.
+Native HTTP transport — SPIKED 2026-06-28, DEFERRED. Configuring atlassian as
+`{type:"http", url:".../v1/mcp"}` in a headless `query()` reports server status
+`needs-auth` and loads no tools: the SDK needs its MCP OAuth control flow
+(SDKControlMcpAuthenticate*) wired, and `settingSources: []` means it won't reuse
+Claude Code's auth. Decision: keep the mcp-remote stdio bridge as the default; native
+HTTP is only viable after wiring headless OAuth, so it stays a future/fallback option.

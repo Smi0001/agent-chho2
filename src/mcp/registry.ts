@@ -82,6 +82,77 @@ export function missingRequiredEnv(spec: CapabilitySpec): string[] {
   return (spec.requiresEnv ?? []).filter((v) => !process.env[v]);
 }
 
+// Tools that mutate an external system, per capability (verified against live tool
+// lists). A capability present here is classified EXPLICITLY: a tool is an outward
+// write iff its name is in the set; everything else from that server is a read.
+// Playwright is present-but-empty: browser actions are the agent's reproduction
+// tools, not outward connector writes, so none are gated. Capabilities NOT listed
+// here fall back to the name heuristic in isOutwardWrite().
+const WRITE_TOOLS: Record<string, Set<string>> = {
+  playwright: new Set(),
+  atlassian: new Set([
+    "addCommentToJiraIssue", "addWorklogToJiraIssue", "createJiraIssue", "editJiraIssue",
+    "transitionJiraIssue", "createIssueLink", "createConfluencePage", "updateConfluencePage",
+    "createConfluenceFooterComment", "createConfluenceInlineComment",
+  ]),
+  github: new Set([
+    "add_comment_to_pending_review", "add_issue_comment", "add_reply_to_pull_request_comment",
+    "assign_copilot_to_issue", "create_branch", "create_or_update_file", "create_pull_request",
+    "create_repository", "delete_file", "fork_repository", "issue_write", "merge_pull_request",
+    "pull_request_review_write", "push_files", "request_copilot_review", "sub_issue_write",
+    "update_pull_request", "update_pull_request_branch",
+  ]),
+  gitea: new Set([
+    "actions_config_write", "actions_run_write", "create_branch", "create_or_update_file",
+    "create_release", "create_repo", "create_tag", "delete_branch", "delete_file",
+    "delete_release", "delete_tag", "fork_repo", "issue_write", "label_write", "milestone_write",
+    "notification_write", "package_write", "pull_request_review_write", "pull_request_write",
+    "sub_issue_write", "timetracking_write", "wiki_write",
+  ]),
+};
+
+// Heuristic for capabilities without an explicit WRITE_TOOLS set: a tool is a read
+// only if its name clearly reads; otherwise treat it as a write (safe default).
+const READ_HINT = /(?:^|[._])(get|list|search|read|fetch|view|describe|lookup)|_read$|info$|resources$|status$/i;
+
+// Split a tool name into { server, tool }. Handles both namings we see: the
+// claude-agent SDK's "mcp__<server>__<tool>" and McpManager's "<server>.<tool>".
+// Returns null for built-in (non-MCP) tools.
+function parseToolName(qualifiedName: string): { server: string; tool: string } | null {
+  if (qualifiedName.startsWith("mcp__")) {
+    const rest = qualifiedName.slice(5);
+    const sep = rest.indexOf("__");
+    if (sep === -1) return null;
+    return { server: rest.slice(0, sep), tool: rest.slice(sep + 2) };
+  }
+  const dot = qualifiedName.indexOf(".");
+  if (dot === -1) return null;
+  return { server: qualifiedName.slice(0, dot), tool: qualifiedName.slice(dot + 1) };
+}
+
+/**
+ * Canonical "<server>.<tool>" name for matching against role allowWrites and for
+ * audit clarity, regardless of the source naming. Built-in tools return unchanged.
+ */
+export function canonicalToolName(qualifiedName: string): string {
+  const p = parseToolName(qualifiedName);
+  return p ? `${p.server}.${p.tool}` : qualifiedName;
+}
+
+/**
+ * Whether a tool call mutates an external system. Built-in (non-MCP) tools are never
+ * outward — mutating built-ins are hard-denied separately. Explicit per-server
+ * write-lists win; uncurated servers use the read heuristic, biased so anything not
+ * clearly a read counts as a write.
+ */
+export function isOutwardWrite(qualifiedName: string): boolean {
+  const p = parseToolName(qualifiedName);
+  if (!p) return false;
+  const known = WRITE_TOOLS[p.server];
+  if (known) return known.has(p.tool);
+  return !READ_HINT.test(p.tool);
+}
+
 export function resolveCapabilities(names: string[]): {
   resolved: CapabilitySpec[];
   unknown: string[];

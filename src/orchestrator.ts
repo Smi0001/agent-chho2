@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { Config } from "./config/schema.js";
 import type { Role, Task } from "./roles/types.js";
-import { resolveCapabilities, missingRequiredEnv } from "./mcp/registry.js";
+import { confirm } from "@clack/prompts";
+import { resolveCapabilities, missingRequiredEnv, isOutwardWrite, canonicalToolName } from "./mcp/registry.js";
 import { unauthedInteractiveCaps } from "./mcp/auth.js";
+import { decide } from "./permissions/policy.js";
 import { createProvider } from "./providers/registry.js";
 import { AuditLogger, memSnapshot } from "./audit/logger.js";
 import type { PermissionVerdict, RunStep } from "./providers/types.js";
@@ -71,6 +73,10 @@ export async function runTask({ role, task, inputs, config }: RunTaskArgs): Prom
     `  MCP: ${ready.map((r) => r.name).join(", ") || "none"}  ·  permissions: ${config.permissions.mode}\n`,
   );
 
+  // Outward writes the user approved interactively during this run (so a repeated
+  // write isn't re-prompted). Not persisted across runs — see TODO.
+  const sessionGrants = new Set<string>();
+
   const permission = async (
     toolName: string,
     input: Record<string, unknown>,
@@ -93,12 +99,42 @@ export async function runTask({ role, task, inputs, config }: RunTaskArgs): Prom
       console.log(`  ⛔ denied ${toolName} (use MCP tools; file/shell mutation disabled)`);
       return { allow: false, message: "Use the role's MCP tools; built-in mutation is disabled." };
     }
-    // No outward connectors yet, so current tools are non-outward → allowed + audited.
+    // Reads are always allowed (audited). Outward writes go through the permission
+    // policy: pre-approved on the role's allowlist (or this run's grants), else the
+    // configured mode decides — and an "ask" outcome prompts the user to approve.
+    const action = canonicalToolName(toolName);
+    const outward = isOutwardWrite(toolName);
+    if (!outward) {
+      await audit.log({
+        ts: isoNow(), role: role.id, task: task.id, action,
+        mode: config.permissions.mode, payload: input, result: "ok",
+      });
+      return { allow: true };
+    }
+    const allowlist = [...role.guardrails.allowWrites, ...sessionGrants];
+    let decision = decide(config.permissions, { action, outward, summary: action }, allowlist);
+    if (decision === "ask") {
+      const approved = await confirmWrite(action, config.permissions);
+      if (approved) sessionGrants.add(action);
+      decision = approved ? "allow" : "deny";
+    }
     await audit.log({
-      ts: isoNow(), role: role.id, task: task.id, action: toolName,
-      mode: config.permissions.mode, payload: input, result: "ok",
+      ts: isoNow(), role: role.id, task: task.id, action,
+      mode: config.permissions.mode, payload: input,
+      result: decision === "allow" ? "ok" : "skipped",
+      error: decision === "allow" ? undefined : "outward write not approved",
     });
-    return { allow: true };
+    if (decision === "allow") {
+      console.log(`  ✓ allowed write ${action}`);
+      return { allow: true };
+    }
+    console.log(`  ⛔ denied write ${action} (not approved)`);
+    return {
+      allow: false,
+      message:
+        `Write "${action}" is not approved. Add it to the role's allowWrites and run ` +
+        `with permissions.mode: allowlist, or approve it when prompted.`,
+    };
   };
 
   let stepNo = 0;
@@ -188,6 +224,17 @@ function buildGoal(task: Task, inputs: Record<string, string>): string {
   const missing = task.inputs.filter((i) => !(i in inputs));
   if (missing.length) lines.push(`\n(Missing inputs: ${missing.join(", ")} — proceed with what you have.)`);
   return lines.join("\n");
+}
+
+/** Prompt to approve an outward write. With no interactive terminal (e.g. CI), only
+ *  proceed when the timeout policy says so; otherwise the write is denied. */
+async function confirmWrite(toolName: string, perms: Config["permissions"]): Promise<boolean> {
+  if (!process.stdin.isTTY) return perms.onTimeout === "proceed";
+  const res = await confirm({
+    message: `Allow outward write "${toolName}"? (adds it to this run's allowlist)`,
+    initialValue: false,
+  });
+  return res === true;
 }
 
 function isoNow(): string {

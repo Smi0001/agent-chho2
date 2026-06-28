@@ -34,8 +34,10 @@ tasks:
     inputs:
       - repo
 guardrails:
+  # Real MCP tool names (must match "<server>.<tool>" as the gate sees them).
+  # gitlab.* is provisional until the gitlab capability is re-added (see TODO.md).
   allowWrites:
-    - github.createPullRequest
-    - github.createComment
-    - gitea.createPullRequest
-    - gitlab.createMergeRequest
+    - github.create_pull_request
+    - github.add_issue_comment
+    - gitea.pull_request_write
+    - gitlab.create_merge_request
