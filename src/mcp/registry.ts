@@ -1,9 +1,8 @@
 // Maps a role "capability" name to an MCP server launch config. Playwright,
-// GitHub, and Gitea are stdio servers that authenticate with a token from the
-// environment (no OAuth). GitLab is the same shape and is planned (see TODO.md).
-// Atlassian is a remote server reached through the `mcp-remote` stdio bridge,
-// which owns the OAuth loopback and token cache; chho2 needs no OAuth code for it.
-// Figma (remote) lands later on the same bridge pattern.
+// GitHub, Gitea, and GitLab are stdio servers that authenticate with a token from
+// the environment (no OAuth). Atlassian is a remote server reached through the
+// `mcp-remote` stdio bridge, which owns the OAuth loopback and token cache; chho2
+// needs no OAuth code for it. Figma (remote) lands later on the same bridge pattern.
 
 export interface CapabilitySpec {
   name: string;
@@ -69,6 +68,21 @@ export const CAPABILITIES: Record<string, CapabilitySpec> = {
     requiresEnv: ["GITEA_ACCESS_TOKEN", "GITEA_HOST"],
     description: "Gitea: repos, issues, pull requests (official server via Docker)",
   },
+  gitlab: {
+    name: "gitlab",
+    command: "docker",
+    // Community GitLab MCP server (stdio). Token + optional API URL forwarded by
+    // name; GITLAB_API_URL defaults to https://gitlab.com/api/v4 when unset, so SaaS
+    // needs no config and a self-hosted instance just sets it in .env.
+    args: [
+      "run", "-i", "--rm",
+      "-e", "GITLAB_PERSONAL_ACCESS_TOKEN",
+      "-e", "GITLAB_API_URL",
+      "iwakitakuma/gitlab-mcp",
+    ],
+    requiresEnv: ["GITLAB_PERSONAL_ACCESS_TOKEN"],
+    description: "GitLab: projects, issues, merge requests, repo files (community server via Docker)",
+  },
   atlassian: {
     name: "atlassian",
     command: "npx",
@@ -97,6 +111,26 @@ export function missingRequiredEnv(spec: CapabilitySpec): string[] {
   return (spec.requiresEnv ?? []).filter((v) => !process.env[v]);
 }
 
+/**
+ * Drop "-e VAR" forwarding pairs whose VAR is empty/unset, so an unset optional
+ * variable (e.g. GITLAB_API_URL) is not forwarded to Docker as an empty value — some
+ * servers reject an empty value and exit. Only bare "-e VAR" pairs are affected, never
+ * "-e VAR=value". Required vars are guaranteed set by the missingRequiredEnv pre-check.
+ */
+export function prunedLaunchArgs(args: string[]): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i]!;
+    const next = args[i + 1];
+    if (a === "-e" && next !== undefined && !next.includes("=") && !process.env[next]) {
+      i++; // skip both "-e" and the unset variable name
+      continue;
+    }
+    out.push(a);
+  }
+  return out;
+}
+
 // Tools that mutate an external system, per capability (verified against live tool
 // lists). A capability present here is classified EXPLICITLY: a tool is an outward
 // write iff its name is in the set; everything else from that server is a read.
@@ -105,6 +139,7 @@ export function missingRequiredEnv(spec: CapabilitySpec): string[] {
 // here fall back to the name heuristic in isOutwardWrite().
 const WRITE_TOOLS: Record<string, Set<string>> = {
   playwright: new Set(),
+
   atlassian: new Set([
     "addCommentToJiraIssue", "addWorklogToJiraIssue", "createJiraIssue", "editJiraIssue",
     "transitionJiraIssue", "createIssueLink", "createConfluencePage", "updateConfluencePage",

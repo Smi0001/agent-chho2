@@ -1,4 +1,5 @@
 import type { ModelProvider, Message, RunOptions, RunResult, RunStep } from "./types.js";
+import { prunedLaunchArgs } from "../mcp/registry.js";
 
 /**
  * Drives Claude via the Claude Agent SDK using a Claude Code subscription token
@@ -41,7 +42,7 @@ export class ClaudeAgentProvider implements ModelProvider {
         {
           type: "stdio" as const,
           command: s.command,
-          args: s.args,
+          args: prunedLaunchArgs(s.args),
           env: envStrings(),
         },
       ]),

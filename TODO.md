@@ -4,56 +4,6 @@ Pending work and recorded decisions for agent-chho2.
 
 ## Pending
 
-### GitLab capability (dev role)
-
-Wired and verified during research, then pulled back out to ship Gitea first.
-Re-add when we do the GitLab integration pass.
-
-What was already verified:
-- Server: `iwakitakuma/gitlab-mcp` (community, Docker stdio). Image manifest
-  resolves on Docker Hub. Not yet run live against a real instance (no token set
-  at the time).
-- Env contract: `GITLAB_PERSONAL_ACCESS_TOKEN` (required); `GITLAB_API_URL`
-  (optional, defaults to `https://gitlab.com/api/v4`, set for self-hosted).
-- Tokens and base URL forward to Docker by name (`-e VAR`, no value), same pattern
-  as the GitHub and Gitea capabilities.
-
-Registry spec to re-add in `src/mcp/registry.ts` (`CAPABILITIES`):
-
-```ts
-gitlab: {
-  name: "gitlab",
-  command: "docker",
-  args: [
-    "run", "-i", "--rm",
-    "-e", "GITLAB_PERSONAL_ACCESS_TOKEN",
-    "-e", "GITLAB_API_URL",
-    "iwakitakuma/gitlab-mcp",
-  ],
-  requiresEnv: ["GITLAB_PERSONAL_ACCESS_TOKEN"],
-  description: "GitLab: projects, issues, merge requests, repo files (community server via Docker)",
-},
-```
-
-`.env.example` block to re-add:
-
-```
-# --- GitLab capability (dev role) ---
-GITLAB_PERSONAL_ACCESS_TOKEN=
-# Optional. Defaults to https://gitlab.com/api/v4 (SaaS). Set for self-hosted.
-GITLAB_API_URL=
-```
-
-Also re-add `WRITE_TOOLS.gitlab` in `registry.ts` (it was removed with the spec).
-The dev role's `gitlab.create_merge_request` allowWrite is provisional until the real
-tool names are confirmed live.
-
-Open decisions for the integration pass:
-- Confirm the community server is the one to standardize on, or pick an alternative.
-  The reference `@modelcontextprotocol/server-gitlab` is archived; GitLab's own MCP is
-  a remote/OAuth offering, not a stdio server.
-- Live-verify with a real token, then record the actual tool names.
-
 ### Per-URL auth detection for interactive (OAuth) capabilities
 
 The auth check (`src/mcp/auth.ts`) is version-agnostic: it scans `~/.mcp-auth` for any

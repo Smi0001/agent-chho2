@@ -1,7 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import type { ToolDef } from "../providers/types.js";
-import { resolveCapabilities, missingRequiredEnv, type CapabilitySpec } from "./registry.js";
+import { resolveCapabilities, missingRequiredEnv, prunedLaunchArgs, type CapabilitySpec } from "./registry.js";
 
 interface Connection {
   spec: CapabilitySpec;
@@ -31,7 +31,7 @@ export class McpManager {
       }
       const transport = new StdioClientTransport({
         command: spec.command,
-        args: spec.args,
+        args: prunedLaunchArgs(spec.args),
         env: process.env as Record<string, string>,
         // Surface stderr for interactive-auth servers so the OAuth URL is visible
         // when the browser cannot auto-open (headless/SSH). Token servers stay quiet.

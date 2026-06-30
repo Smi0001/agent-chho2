@@ -10,6 +10,13 @@ upgrade (feature H).
 ## [Unreleased]
 
 ### Added
+- **GitLab capability + safer Docker env forwarding** (milestone 2): re-added the
+  `gitlab` capability (community `iwakitakuma/gitlab-mcp` via Docker, 77 tools),
+  verified live via claude-agent (`list_projects`). Write classification uses the name
+  heuristic (its verb-named tools gate correctly); the dev role's
+  `gitlab.create_merge_request` allowWrite matches a real tool. Also: chho2 now prunes
+  `-e VAR` Docker flags whose variable is empty/unset, so an empty optional value (e.g.
+  `GITLAB_API_URL`) is not forwarded as an empty string that the server rejects.
 - **Capability prompt hints + per-task tool curation** (milestone 2): a capability spec
   can inject a line into the system prompt when active — `atlassian` uses `ATLASSIAN_SITE`
   so the model passes the site as `cloudId` directly and skips the resolve-cloudId call.
