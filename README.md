@@ -98,6 +98,28 @@ a machine the 8B class (`llama3.1:8b`) is the practical sweet spot for local too
 runs; larger and "thinking" models are correct but slower. Hosted vendors (Anthropic,
 OpenAI, Google) do structured tool calls reliably if you want speed over local/free.
 
+#### What works locally, by task
+
+Tested with `llama3.1:8b`. Tasks that drive a **single, browser-style capability** run
+well, including multi-step ones (it made 5 structured `playwright` calls to compare two
+pages). Tasks that drive **Jira/Atlassian or Git-hosting** tools are **not** reliable
+locally: with those larger toolsets the same model intermittently emits the call as
+text instead of a structured tool call, even when the task is curated to one tool.
+
+| Role · task | Capabilities | Local 8B (llama3.1:8b) | Recommended brain |
+| --- | --- | --- | --- |
+| dev · `compare-urls` | playwright | works | local ok |
+| qa · `regression-sweep` | playwright | works (browser only) | local ok |
+| dev · `fix-ui-bug` | playwright + github | browser repro yes; the GitHub/PR part is unreliable | frontier |
+| dev · `open-pr` | github | unreliable | frontier |
+| qa · `verify-ticket` | playwright + atlassian + github | unreliable (Jira flow) | `claude-agent` / hosted |
+| qa · `update-comment` | atlassian | unreliable (Jira flow) | `claude-agent` / hosted |
+
+Rule of thumb: browser-only tasks run on a tool-capable local 8B; anything touching
+Jira/Atlassian or Git-hosting should use `claude-agent` or a hosted frontier model.
+`ATLASSIAN_SITE` and per-task tool curation shorten the chains and help, but they do not
+overcome a small model's unreliable structured tool-calling on the larger toolsets.
+
 ## Configuration
 
 Copy [.chho2.example.json](.chho2.example.json) to `.chho2.json` (per-repo) or
