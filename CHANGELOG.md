@@ -17,6 +17,10 @@ upgrade (feature H).
   `gitlab.create_merge_request` allowWrite matches a real tool. Also: chho2 now prunes
   `-e VAR` Docker flags whose variable is empty/unset, so an empty optional value (e.g.
   `GITLAB_API_URL`) is not forwarded as an empty string that the server rejects.
+- **chrome-devtools capability** (milestone 2): registered the dev role's previously
+  unregistered `chrome-devtools` capability (Google's `chrome-devtools-mcp` via npx,
+  headless; 29 tools: performance traces, network/console inspection, DOM). The dev
+  role's declared capabilities are now all real (no silent skips).
 - **Capability prompt hints + per-task tool curation** (milestone 2): a capability spec
   can inject a line into the system prompt when active — `atlassian` uses `ATLASSIAN_SITE`
   so the model passes the site as `cloudId` directly and skips the resolve-cloudId call.

@@ -43,6 +43,13 @@ export const CAPABILITIES: Record<string, CapabilitySpec> = {
     args: ["-y", "@playwright/mcp@latest", "--headless"],
     description: "Browser automation: navigate, click, snapshot, console, network",
   },
+  "chrome-devtools": {
+    name: "chrome-devtools",
+    command: "npx",
+    // Google's chrome-devtools-mcp (stdio, no token). Headless for agent runs.
+    args: ["-y", "chrome-devtools-mcp@latest", "--headless"],
+    description: "Chrome DevTools: performance traces, network + console inspection, DOM",
+  },
   github: {
     name: "github",
     command: "docker",
@@ -139,7 +146,7 @@ export function prunedLaunchArgs(args: string[]): string[] {
 // here fall back to the name heuristic in isOutwardWrite().
 const WRITE_TOOLS: Record<string, Set<string>> = {
   playwright: new Set(),
-
+  "chrome-devtools": new Set(), // browser investigation tools, not outward writes
   atlassian: new Set([
     "addCommentToJiraIssue", "addWorklogToJiraIssue", "createJiraIssue", "editJiraIssue",
     "transitionJiraIssue", "createIssueLink", "createConfluencePage", "updateConfluencePage",
