@@ -149,10 +149,14 @@ export async function runTask({ role, task, inputs, config }: RunTaskArgs): Prom
 
   const startedMs = Date.now();
   try {
+    const capabilityHints = ready
+      .map((s) => s.promptHint?.())
+      .filter((h): h is string => Boolean(h));
     const result = await provider.run({
-      system: buildSystemPrompt(role, task, config.outputStyle),
+      system: [buildSystemPrompt(role, task, config.outputStyle), ...capabilityHints].join("\n\n"),
       messages: [{ role: "user", content: buildGoal(task, inputs) }],
       mcpServers: ready.map((r) => ({ name: r.name, command: r.command, args: r.args })),
+      allowedTools: task.tools,
       maxTurns: 25,
       permission,
       onStep,

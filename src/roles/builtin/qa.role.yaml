@@ -44,6 +44,9 @@ tasks:
       explicit approval to write; perform the update.
     capabilities:
       - atlassian
+    tools:
+      - atlassian.getJiraIssue
+      - atlassian.addCommentToJiraIssue
     steps:
       - Read the ticket and, if a commentId is given, the current text of that comment
       - Update the comment so it includes the requested text, keeping existing content intact

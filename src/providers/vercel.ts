@@ -64,7 +64,9 @@ export class VercelProvider implements ModelProvider {
     try {
       const launches = opts.mcpServers ?? [];
       if (launches.length) await mgr.connect(launches.map((s) => s.name));
-      const defs = launches.length ? await mgr.listTools() : [];
+      let defs = launches.length ? await mgr.listTools() : [];
+      // Tool curation: McpManager names tools "<server>.<tool>", matching allowedTools.
+      if (opts.allowedTools) defs = defs.filter((d) => opts.allowedTools!.includes(d.name));
 
       // Build AI SDK tools from MCP tools. Name them "mcp__<server>__<tool>" so the
       // permission gate's canonicalToolName/isOutwardWrite treat them identically to

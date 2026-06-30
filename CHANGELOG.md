@@ -10,6 +10,13 @@ upgrade (feature H).
 ## [Unreleased]
 
 ### Added
+- **Capability prompt hints + per-task tool curation** (milestone 2): a capability spec
+  can inject a line into the system prompt when active — `atlassian` uses `ATLASSIAN_SITE`
+  so the model passes the site as `cloudId` directly and skips the resolve-cloudId call.
+  A task can also declare a `tools` allowlist (`<server>.<tool>`) so only the needed MCP
+  tools are exposed; the vercel adapter applies it. Together these shorten tool-call
+  chains and let smaller local models pick the right tool. The qa `update-comment` task
+  is scoped to `atlassian.getJiraIssue` + `atlassian.addCommentToJiraIssue`.
 - **Vercel provider implemented** (milestone 2): the `vercel` provider is now real
   (was a stub that threw). It drives Anthropic, OpenAI, Google, and local Ollama
   models via the Vercel AI SDK v6 (`generateText` + `stopWhen: stepCountIs`), exposing

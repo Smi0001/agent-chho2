@@ -23,6 +23,12 @@ export interface CapabilitySpec {
    * for a cached token (see `agent-chho2 auth <capability>`).
    */
   interactiveAuth?: boolean;
+  /**
+   * Optional guidance appended to the system prompt when this capability is active.
+   * Use it to remove avoidable tool-call chains (e.g. tell the model the Atlassian
+   * cloudId so it skips the discovery call). Returns undefined when not configured.
+   */
+  promptHint?: () => string | undefined;
 }
 
 // Pinned exact (not floating) for reproducible runs and supply-chain control.
@@ -74,6 +80,15 @@ export const CAPABILITIES: Record<string, CapabilitySpec> = {
     args: ["-y", `mcp-remote@${MCP_REMOTE_VERSION}`, "https://mcp.atlassian.com/v1/mcp"],
     interactiveAuth: true,
     description: "Atlassian: Jira issues, Confluence pages, search (remote MCP via mcp-remote)",
+    // If the site is configured, tell the model to use it as cloudId so it makes a
+    // single call instead of the resolve-cloudId -> fetch chain (which trips up
+    // smaller models). The tools accept the site hostname as cloudId.
+    promptHint: () => {
+      const site = process.env.ATLASSIAN_SITE;
+      return site
+        ? `Atlassian: pass cloudId="${site}" directly to Jira/Confluence tools (e.g. getJiraIssue, addCommentToJiraIssue). Do not call resource-discovery tools to resolve the cloudId.`
+        : undefined;
+    },
   },
 };
 

@@ -14,6 +14,12 @@ export const TaskSchema = z.object({
    * tools in context). Defaults to the role's full capability set when omitted.
    */
   capabilities: z.array(z.string()).optional(),
+  /**
+   * Optional allowlist of MCP tool names ("<server>.<tool>") this task should expose
+   * to the model. When set, only these are offered (fewer tools = easier, more
+   * reliable selection, especially for smaller models). Unset = all tools.
+   */
+  tools: z.array(z.string()).optional(),
 });
 export type Task = z.infer<typeof TaskSchema>;
 

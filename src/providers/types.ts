@@ -56,6 +56,13 @@ export interface RunOptions {
   callTool?: (name: string, args: unknown) => Promise<unknown>;
   /** MCP servers to connect for an agentic, multi-turn run. */
   mcpServers?: McpServerLaunch[];
+  /**
+   * Restrict the MCP tools exposed to the model to these canonical "<server>.<tool>"
+   * names. When unset, all tools from the connected servers are exposed. Applied by
+   * the vercel adapter (helps smaller models pick the right tool); the claude-agent
+   * path leaves the full toolset to the model.
+   */
+  allowedTools?: string[];
   maxTurns?: number;
   /** Permission gate for tool calls (deny-by-default for dangerous tools). */
   permission?: PermissionFn;
