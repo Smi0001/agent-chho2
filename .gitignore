@@ -22,6 +22,9 @@ logs/
 evidence-*.png
 ss/
 
+# Local Claude Code config (kept personal, not shared)
+.claude/settings.json
+
 # OS / editor
 .DS_Store
 *.log
