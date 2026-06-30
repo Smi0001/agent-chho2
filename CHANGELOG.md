@@ -10,6 +10,17 @@ upgrade (feature H).
 ## [Unreleased]
 
 ### Added
+- **Vercel provider implemented** (milestone 2): the `vercel` provider is now real
+  (was a stub that threw). It drives Anthropic, OpenAI, Google, and local Ollama
+  models via the Vercel AI SDK v6 (`generateText` + `stopWhen: stepCountIs`), exposing
+  the role's MCP tools (sourced from our own `McpManager`, not the SDK's MCP client) so
+  every tool call still passes through the orchestrator's permission gate and audit.
+  OpenAI/Ollama use the chat-completions endpoint. Verified live against local Ollama
+  (`llama3.1:8b`) on both the text and MCP-tool paths (navigate via playwright →
+  permission gate → result → model). Usage (in/out/total/cache) is mapped; cost and
+  context are omitted (the SDK does not report them). Note: tool-calling needs a
+  tool-capable model — small/coder models (e.g. qwen2.5-coder) may emit calls as text.
+  New deps pinned exact: `ai`, `@ai-sdk/{anthropic,openai,google}`.
 - **Pinned mcp-remote + `troubleshoot` command** (milestone 2): the Atlassian
   capability now pins `mcp-remote` to an exact version (`MCP_REMOTE_VERSION`) for a
   stable auth cache and reproducible runs. New `agent-chho2 troubleshoot [capability]`
