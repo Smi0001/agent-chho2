@@ -75,6 +75,29 @@ npm run build          # compile to dist/ for publishing
 | OpenAI / Gemini | `vercel` | `OPENAI_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY` | Metered API |
 | A local model | `vercel` (Ollama) | none — set `baseURL` in config | Free |
 
+### Local models (Ollama) and tool-calling
+
+Text-only generation works with any Ollama model. Most roles, though, drive **MCP
+tools**, and tool tasks need a model that emits **structured tool calls** (the
+`tools` capability in Ollama). Check a model with `ollama show <model>` and look for
+`tools` in its capabilities; a model without it will describe the call as text and
+nothing runs.
+
+Models tested against the `vercel` + Ollama path (a browser tool task):
+
+| Model | Tool tasks | Notes |
+| --- | --- | --- |
+| `llama3.1:8b` | works | Recommended local default; fastest of those tested here. |
+| `qwen2.5:14b` | works | Correct, but slow on a CPU-only box (about 7-8 min per run observed). |
+| `qwen3:8b` | works, with a caveat | Supports tools, but its "thinking" mode is slow; append `/no_think` to the prompt to speed it up. |
+| `qwen2.5-coder:7b` | no | Emits tool calls as plain text, so they never execute. |
+| `deepseek-coder:6.7b` | no | No tool support; Ollama rejects the request. |
+
+Speed is hardware-dependent (the figures above are from a CPU-only machine). On such
+a machine the 8B class (`llama3.1:8b`) is the practical sweet spot for local tool
+runs; larger and "thinking" models are correct but slower. Hosted vendors (Anthropic,
+OpenAI, Google) do structured tool calls reliably if you want speed over local/free.
+
 ## Configuration
 
 Copy [.chho2.example.json](.chho2.example.json) to `.chho2.json` (per-repo) or
@@ -83,9 +106,11 @@ Copy [.chho2.example.json](.chho2.example.json) to `.chho2.json` (per-repo) or
 - `provider` — which brain to use.
 - `outputStyle` — `normal | concise | terse` (terse = caveman-style token saving
   for narration; outward artifacts like PR/Jira text stay readable).
-- `permissions.mode` — `ask` (default), `allowlist`, or `auto`. Outward/irreversible
-  actions confirm by default; `auto` requires explicit opt-in. After
-  `promptTimeoutSeconds` of no response, an email escalation fires (configurable).
+- `permissions.mode` — `ask` (default), `allowlist`, or `auto`. Outward writes (PRs,
+  Jira comments, pushes) are gated: in `ask` mode they prompt for confirmation, in
+  `allowlist` mode the tools on the role's `allowWrites` are pre-approved, and `auto`
+  proceeds (all still audited). In a non-interactive run a gated write is denied
+  unless `onTimeout` is set to `proceed`.
 - `audit` — every action is appended to a **JSONL** log with tokens, cost, and
   memory usage.
 
@@ -94,8 +119,9 @@ Copy [.chho2.example.json](.chho2.example.json) to `.chho2.json` (per-repo) or
 - Secrets live only in the environment / gitignored `.env`; the audit log redacts them.
 - Outward-facing writes (PRs, Jira comments, pushes) are gated by the permission
   policy and recorded in the audit log.
-- OAuth connectors (Atlassian, Figma, …) use a local loopback browser flow; tokens
-  are cached in the OS keychain, never in plaintext or logs.
+- OAuth connectors (e.g. Atlassian) authenticate via a local loopback browser flow
+  handled by `mcp-remote`, which caches tokens on disk under `~/.mcp-auth` (not in the
+  repo and not in the audit log). Treat that directory as sensitive.
 
 ## License
 
