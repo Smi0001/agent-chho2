@@ -10,6 +10,10 @@ upgrade (feature H).
 ## [Unreleased]
 
 ### Added
+- **"What's New" on upgrade** (feature H): the interactive CLI now shows unread CHANGELOG
+  entries after a version change. The last-seen version is persisted in
+  `~/.chho2/state.json`; on an upgrade the newer sections are printed, then the current
+  version is recorded. Best-effort — a failure never blocks startup.
 - **Notifications: email + Slack** (feature B): the notifier is now real (was a stub
   that only logged and was never wired in). On task completion or failure the
   orchestrator sends a short summary on task completion/failure — and an escalation

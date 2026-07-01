@@ -6,6 +6,7 @@ import type { Config } from "./config/schema.js";
 import type { Role } from "./roles/types.js";
 import { loadRoles } from "./roles/registry.js";
 import { renderHelp, renderRoles } from "./ui/help.js";
+import { showWhatsNew } from "./whatsnew.js";
 
 function version(): string {
   const here = path.dirname(fileURLToPath(import.meta.url));
@@ -68,6 +69,7 @@ export async function main(argv: string[]): Promise<void> {
   }
 
   // Default: interactive shell. Lazy import keeps `roles`/`--help`/`version` light.
+  showWhatsNew(version()); // feature H: unread CHANGELOG entries after an upgrade
   const { runInteractive } = await import("./ui/shell.js");
   await runInteractive(roles, config);
 }
