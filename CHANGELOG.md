@@ -10,6 +10,18 @@ upgrade (feature H).
 ## [Unreleased]
 
 ### Added
+- **Notifications: email + Slack** (feature B): the notifier is now real (was a stub
+  that only logged and was never wired in). On task completion or failure the
+  orchestrator sends a short summary on task completion/failure — and an escalation
+  when a run is awaiting approval for an outward write — over the configured
+  `notify.channels` — `email`
+  (SMTP via nodemailer, `CHHO2_SMTP_URL` + recipient) and/or `slack` (incoming webhook,
+  `CHHO2_SLACK_WEBHOOK_URL`). Env-gated: both channels are on by default but a channel
+  whose secret is unset is skipped, so the effective channels are the ones you have
+  configured. If notifications are on but nothing is configured, a one-line hint tells
+  you how to enable or silence them (rather than failing silently). A failed send never
+  breaks the run. Secrets live only in the environment. Note: summaries can include task content, so they are an external data
+  flow — keep the recipient/webhook trusted and review under DPDP/IRDAI for regulated data.
 - **GitLab capability + safer Docker env forwarding** (milestone 2): re-added the
   `gitlab` capability (community `iwakitakuma/gitlab-mcp` via Docker, 77 tools),
   verified live via claude-agent (`list_projects`). Write classification uses the name

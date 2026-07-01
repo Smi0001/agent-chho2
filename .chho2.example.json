@@ -16,7 +16,7 @@
     "onTimeout": "wait"
   },
   "notify": {
-    "channel": "email",
+    "channels": ["email", "slack"],
     "email": "you@example.com"
   },
   "audit": {

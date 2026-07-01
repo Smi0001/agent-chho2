@@ -7,6 +7,7 @@ import { unauthedInteractiveCaps } from "./mcp/auth.js";
 import { decide } from "./permissions/policy.js";
 import { createProvider } from "./providers/registry.js";
 import { AuditLogger, memSnapshot } from "./audit/logger.js";
+import { makeNotifier } from "./notify/notifier.js";
 import type { PermissionVerdict, RunStep } from "./providers/types.js";
 
 // Tools that are never allowed, regardless of permission mode.
@@ -24,6 +25,9 @@ export interface RunTaskArgs {
 export async function runTask({ role, task, inputs, config }: RunTaskArgs): Promise<void> {
   const runId = `${isoNow().replace(/[:.]/g, "-")}-${randomUUID().slice(0, 8)}`;
   const audit = new AuditLogger(config.audit.dir, runId);
+  // Best-effort notifications on completion/failure (feature B). Configured channels
+  // with a missing secret are silently skipped; a failed send never breaks the run.
+  const notifier = makeNotifier(config.notify);
 
   // A task may scope itself to a subset of the role's capabilities so the run does
   // not start MCP servers (and load tools) it will never use.
@@ -114,6 +118,11 @@ export async function runTask({ role, task, inputs, config }: RunTaskArgs): Prom
     const allowlist = [...role.guardrails.allowWrites, ...sessionGrants];
     let decision = decide(config.permissions, { action, outward, summary: action }, allowlist);
     if (decision === "ask") {
+      // Escalate: tell the user a run is waiting on their approval, then prompt.
+      await notifier.send(
+        `${role.label} / ${task.label} — approval needed`,
+        `Approval needed for outward write: ${action}`,
+      );
       const approved = await confirmWrite(action, config.permissions);
       if (approved) sessionGrants.add(action);
       decision = approved ? "allow" : "deny";
@@ -187,6 +196,11 @@ export async function runTask({ role, task, inputs, config }: RunTaskArgs): Prom
       tokens: result.usage, costEst: result.costUsd, ctxPct, result: "ok",
     });
     console.log(`audit: ${audit.path}`);
+    await notifier.send(
+      `${role.label} / ${task.label} — done`,
+      `${truncate(result.text.trim() || "(no text returned)", 600)}\n\n` +
+        `tokens ${u.total} · ${ms} ms · audit ${audit.path}`,
+    );
   } catch (err) {
     await audit.log({
       ts: isoNow(), role: role.id, task: task.id, action: "task.run",
@@ -194,6 +208,10 @@ export async function runTask({ role, task, inputs, config }: RunTaskArgs): Prom
     });
     console.error(`\n✗ ${(err as Error).message}`);
     console.log(`audit: ${audit.path}`);
+    await notifier.send(
+      `${role.label} / ${task.label} — ERROR`,
+      `${(err as Error).message}\n\naudit ${audit.path}`,
+    );
     process.exitCode = 1;
   }
 }
