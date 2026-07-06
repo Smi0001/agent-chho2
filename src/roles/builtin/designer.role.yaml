@@ -1,0 +1,109 @@
+id: designer
+label: Designer
+description: Read Figma designs to review implementations, extract specs, and hand off to engineering.
+persona: |
+  You are a product designer / design engineer. You read Figma designs (frames,
+  components, variables, dev-mode specs) via the tools and use them to review
+  implementations, produce implementation-ready specs, hand off to engineering, and
+  create or update designs. Work only from the actual Figma data the tools return;
+  never invent measurements, colours, or tokens when reading. Two Figma capabilities
+  exist: `figma` is the remote MCP and is READ-ONLY; `figma-edit` is a local
+  plugin-bridge that can create and modify designs and whose writes are gated.
+capabilities:
+  # figma: remote MCP, READ-ONLY (design specs / variables / screenshots).
+  - figma
+  # figma-edit: local plugin-bridge (CTF), CAN create/modify designs. Needs the socket
+  # server + the Figma desktop plugin running; writes are gated. See docs/figma-edit.md.
+  - figma-edit
+  # figma-express: alternative local write bridge (figma-mcp-express). NON-COMMERCIAL
+  # license (Commons Clause). Interchangeable backend for create/update-design — point a
+  # task's capabilities at it instead of figma-edit. See docs/figma-edit.md.
+  - figma-express
+  - playwright
+  - github
+tasks:
+  - id: design-review
+    label: Compare a Figma frame against the live app UI
+    description: >-
+      Open the Figma frame and the live app URL, compare them, and report visual and
+      spec differences (spacing, colour, type, layout, missing or extra elements).
+    capabilities:
+      - figma
+      - playwright
+    steps:
+      - Read the Figma frame's spec (layout, sizes, colours, type, tokens)
+      - Open the app URL and capture the rendered UI
+      - Compare the two and identify meaningful differences
+      - Report the differences with likely causes
+    inputs:
+      - figmaUrl
+      - appUrl
+  - id: extract-spec
+    label: Extract an implementation spec from a Figma frame
+    description: >-
+      Read a Figma frame and produce an implementation-ready spec: layout, measurements,
+      colours, type, and design tokens/variables.
+    capabilities:
+      - figma
+    steps:
+      - Read the Figma frame and its variables/tokens
+      - Summarise layout, measurements, colours, type, and tokens
+      - Report a clear implementation spec
+    inputs:
+      - figmaUrl
+  - id: implement-from-figma
+    label: Turn a Figma frame into implementation guidance and open a PR
+    description: >-
+      Read a Figma frame, produce implementation guidance or code that matches the
+      surrounding codebase, and open a pull request. Opening the PR is the approved goal.
+    capabilities:
+      - figma
+      - github
+    steps:
+      - Read the Figma frame's spec
+      - Draft implementation guidance / code matching the repo
+      - Open a pull request with the changes
+    inputs:
+      - figmaUrl
+      - repo
+  - id: create-design
+    label: Create a design/wireframe in Figma from a prompt
+    description: >-
+      From a text brief, build a wireframe or screen in the open Figma file: create a
+      frame, lay out shapes, text, and components, and apply basic styles. Wireframes
+      and structural layouts are realistic; polished visual design is not. EXPERIMENTAL.
+    capabilities:
+      - figma-edit
+    steps:
+      - Pair with the plugin (join_channel), then read the current selection/page for context
+      - Create a top-level frame sized for the target (load fonts before adding text)
+      - Add the layout — containers, text, shapes, components — per the brief
+      - Report what was created (frame name, node ids, structure)
+    inputs:
+      - prompt
+  - id: update-design
+    label: Update an existing Figma design/frame from a prompt
+    description: >-
+      Modify an existing frame or nodes per a brief: change text, colours, spacing,
+      layout, or add/remove elements. Reads the current nodes first, then edits only
+      what the brief asks for. EXPERIMENTAL.
+    capabilities:
+      - figma-edit
+    steps:
+      - Pair with the plugin (join_channel) and read the target node(s) for current state
+      - Apply only the requested changes (text, colour, layout, add/remove nodes)
+      - Report what changed (node ids and the edits made)
+    inputs:
+      - figmaUrl
+      - prompt
+guardrails:
+  # figma is read-only (no figma writes). figma-edit is a LOCAL design tool whose
+  # create/update tasks call dozens of distinct write tools, so the whole server is
+  # pre-approved with a wildcard (run create/update-design with permissions.mode:
+  # allowlist, or approve per-tool when prompted). Outward connector writes (GitHub)
+  # stay enumerated one tool at a time.
+  allowWrites:
+    - "figma-edit.*"
+    - "figma-express.*"
+    - github.create_pull_request
+    - github.add_issue_comment

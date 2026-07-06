@@ -4,6 +4,35 @@ Pending work and recorded decisions for agent-chho2.
 
 ## Pending
 
+### figma-express — wired for non-commercial use (Commons Clause constraint)
+
+`figma-express` (`figma-mcp-express`, Go plugin-bridge, compact batch-ops surface) is
+wired as an alternative write backend, but only for **internal / non-commercial use**:
+its `LICENSE` carries the **Commons Clause License Condition v1.0** (no-selling
+restriction) even though the npm `license` field reports MIT. Constraint to honor: do
+not enable `figma-express` in any copy of chho2 that is sold or offered as a paid
+product; `figma-edit` (MIT) is the default and has no such restriction. If chho2 ever
+heads toward commercial distribution, get legal sign-off or drop this capability.
+Supply-chain note: it ships as ~149 MB of precompiled Go binaries (opaque vs CTF's
+readable TypeScript). Write classification uses the name heuristic (its `create_*`/`set_*`
+/`batch` tools gate correctly; `get_*`/`search_*`/`list_*` read).
+
+### cursor-talk-to-figma-mcp — rejected (redundant/inferior to figma-edit)
+
+Verified: MIT at source (`sonnylazuardi`), but the published npm package fails to start
+(`ERR_PACKAGE_PATH_NOT_EXPORTED`) and registers 40 tools vs CTF's 92. CTF (`figma-edit`)
+is the maintained, Claude-oriented fork of this same project, so cursor-talk adds nothing.
+Not wired.
+
+### Live-verify figma-edit end to end
+
+The `figma-edit` capability (CTF) is verified at the layer chho2 owns: the MCP server
+starts and enumerates 92 tools over stdio, and write classification / the `figma-edit.*`
+allowlist wildcard are unit-tested. The full path (socket server + imported Figma plugin
++ `join_channel` + real create/update in an open file) needs Figma Desktop and can only
+be verified on a workstation. Run `agent-chho2 run designer create-design …` per
+`docs/figma-edit.md` and record whether create/update quality is good enough to keep.
+
 ### Per-URL auth detection for interactive (OAuth) capabilities
 
 The auth check (`src/mcp/auth.ts`) is version-agnostic: it scans `~/.mcp-auth` for any

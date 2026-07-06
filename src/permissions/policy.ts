@@ -11,10 +11,26 @@ export interface ActionRequest {
 }
 
 /**
+ * Whether an action is covered by an allowlist entry. Supports an exact
+ * `<server>.<tool>` match and a per-server wildcard `<server>.*` that pre-approves
+ * every write from that server. The wildcard is for local, bulk-write capabilities
+ * (e.g. `figma-edit.*`, where a single create-design task calls dozens of distinct
+ * write tools); it is not appropriate for outward connector writes (Jira/GitHub),
+ * which stay enumerated one tool at a time.
+ */
+export function allowlistCovers(action: string, allowlist: string[]): boolean {
+  if (allowlist.includes(action)) return true;
+  const dot = action.indexOf(".");
+  if (dot === -1) return false;
+  return allowlist.includes(`${action.slice(0, dot)}.*`);
+}
+
+/**
  * Decide whether an action may proceed without prompting (feature C).
  *  - reads (outward = false) are always allowed.
  *  - ask:       prompt for every outward action.
- *  - allowlist: outward actions on the role's allowlist are pre-approved.
+ *  - allowlist: outward actions on the role's allowlist are pre-approved
+ *               (exact `<server>.<tool>` or a `<server>.*` wildcard).
  *  - auto:      outward actions proceed (still audited).
  */
 export function decide(
@@ -27,7 +43,7 @@ export function decide(
     case "auto":
       return "allow";
     case "allowlist":
-      return roleAllowlist.includes(req.action) ? "allow" : "ask";
+      return allowlistCovers(req.action, roleAllowlist) ? "allow" : "ask";
     case "ask":
     default:
       return "ask";

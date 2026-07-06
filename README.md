@@ -46,7 +46,7 @@ Role registry      (dev.role.yaml, qa.role.yaml, … — persona + capabilities 
 Orchestrator       ── ModelProvider interface ──┐  swappable "brain"
         │                                        ├─ claude-agent  (Claude Agent SDK, subscription token)
 Capabilities = MCP clients                       └─ vercel        (Vercel AI SDK: Anthropic/OpenAI/Gemini/Ollama)
-  playwright · github/gitlab/gitea · atlassian · figma
+  playwright · github/gitlab/gitea · atlassian · figma (read) · figma-edit (write)
         │
 Cross-cutting: config · permissions · notifier · JSONL audit
 ```

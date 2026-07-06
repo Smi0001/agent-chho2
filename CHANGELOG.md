@@ -10,6 +10,31 @@ upgrade (feature H).
 ## [Unreleased]
 
 ### Added
+- **Figma design create/update via a local plugin-bridge** (milestone 2): added the
+  `figma-edit` capability, backed by `claude-talk-to-figma-mcp` (CTF, MIT), which drives
+  the Figma Plugin API through a companion desktop plugin over a localhost WebSocket.
+  This is the only path that can write design nodes (the official/remote MCP is
+  read-only). The `designer` role gains `create-design` (build a wireframe/screen from a
+  prompt) and `update-design` (edit an existing frame from a prompt); both are
+  experimental (wireframes and structural layouts are realistic, polished visual design
+  is not) and gated. Because one task calls dozens of distinct write tools, the write
+  allowlist now supports a per-server wildcard (`<server>.*`); the designer role
+  pre-approves `figma-edit.*` for `allowlist` mode, while outward connector writes
+  (GitHub) stay enumerated one tool at a time. Server pinned exact (`FIGMA_EDIT_VERSION`).
+  Setup and the security/compliance notes are in `docs/figma-edit.md`. A second,
+  interchangeable backend `figma-express` (`figma-mcp-express`) is also wired for
+  **internal / non-commercial use only**: its LICENSE carries a Commons Clause
+  restriction (npm reports MIT) that forbids selling the software, so it must not be
+  enabled in a copy of chho2 that is sold or offered as a paid product. `figma-edit`
+  (MIT) has no such restriction and is the default. A third candidate
+  (`cursor-talk-to-figma-mcp`) was rejected: MIT at source but the published package
+  fails to start and CTF is its maintained superset (92 vs 40 tools).
+- **Figma capability + designer role** (milestone 2): added the read-only `figma`
+  capability (Figma's remote MCP via the mcp-remote bridge, OAuth-cached like atlassian;
+  run `agent-chho2 auth figma` once) and a `designer` role with `design-review` (Figma
+  frame vs live UI, figma+playwright), `extract-spec` (figma), and `implement-from-figma`
+  (figma+github → PR). This remote MCP is read-only; creating or editing designs is done
+  through the separate `figma-edit` capability above.
 - **"What's New" on upgrade** (feature H): the interactive CLI now shows unread CHANGELOG
   entries after a version change. The last-seen version is persisted in
   `~/.chho2/state.json`; on an upgrade the newer sections are printed, then the current

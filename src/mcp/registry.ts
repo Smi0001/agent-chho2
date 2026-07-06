@@ -2,7 +2,10 @@
 // GitHub, Gitea, and GitLab are stdio servers that authenticate with a token from
 // the environment (no OAuth). Atlassian is a remote server reached through the
 // `mcp-remote` stdio bridge, which owns the OAuth loopback and token cache; chho2
-// needs no OAuth code for it. Figma (remote) lands later on the same bridge pattern.
+// needs no OAuth code for it. Figma is remote too (read-only design specs), on the
+// same mcp-remote bridge pattern. `figma-edit` is a LOCAL plugin-bridge (CTF) that
+// can create/modify designs by driving the Figma Plugin API through a companion
+// desktop plugin over a localhost WebSocket — see the figma-edit spec below.
 
 export interface CapabilitySpec {
   name: string;
@@ -35,6 +38,18 @@ export interface CapabilitySpec {
 // exists. (mcp-remote keys its auth cache by its own internal version constant, not
 // this npm version, so a bump does not by itself force a re-auth.)
 export const MCP_REMOTE_VERSION = "0.1.37";
+
+// The local Figma plugin-bridge (CTF, MIT). Pinned exact for reproducible runs and
+// supply-chain control, like MCP_REMOTE_VERSION. This server drives the Figma Plugin
+// API (create/modify design nodes) through a companion desktop plugin; it is the only
+// path to writing designs, since Figma's official/remote MCP is read-only.
+export const FIGMA_EDIT_VERSION = "1.0.0";
+
+// Alternative local Figma plugin-bridge (figma-mcp-express, Go). Compact batch-ops tool
+// surface. LICENSE: Commons Clause layered on the base license (npm reports MIT) — it
+// forbids SELLING the software, so it is wired for INTERNAL / NON-COMMERCIAL use only.
+// Do not redistribute chho2 for sale with this capability enabled. See docs/figma-edit.md.
+export const FIGMA_EXPRESS_VERSION = "2.7.0";
 
 export const CAPABILITIES: Record<string, CapabilitySpec> = {
   playwright: {
@@ -111,6 +126,59 @@ export const CAPABILITIES: Record<string, CapabilitySpec> = {
         : undefined;
     },
   },
+  figma: {
+    name: "figma",
+    command: "npx",
+    // Figma's remote MCP (read-only: design specs, variables, screenshots) reached via
+    // the mcp-remote bridge, same OAuth-cached pattern as atlassian. Cannot create or
+    // edit designs; that needs a Figma plugin-bridge server (see TODO.md).
+    args: ["-y", `mcp-remote@${MCP_REMOTE_VERSION}`, "https://mcp.figma.com/mcp"],
+    interactiveAuth: true,
+    description: "Figma: read designs, frames, components, variables, dev-mode specs (remote MCP)",
+  },
+  "figma-edit": {
+    name: "figma-edit",
+    command: "npx",
+    // CTF (claude-talk-to-figma-mcp, MIT). This is the MCP *server* bin; it connects
+    // to a localhost WebSocket socket server (default :3055) that a companion Figma
+    // desktop plugin also joins. Writing designs therefore needs three local pieces
+    // running: this server (chho2 spawns it), the socket server, and the plugin in
+    // Figma Desktop — see docs/figma-edit.md. No env token: pairing is by channel over
+    // localhost, so nothing leaves the machine except the design ops Figma itself sends
+    // to its cloud (the same file the designer already edits by hand).
+    args: ["-y", "-p", `claude-talk-to-figma-mcp@${FIGMA_EDIT_VERSION}`, "claude-talk-to-figma-mcp-server"],
+    description: "Figma (local plugin-bridge): create and modify designs — frames, text, shapes, styles, components",
+    // Tell the model to pair with the plugin before anything else, and give it the two
+    // ergonomic rules that otherwise cost failed calls (fonts, top-level frame).
+    promptHint: () => {
+      const ch = process.env.FIGMA_CHANNEL;
+      const join = ch
+        ? `call join_channel with channel="${ch}"`
+        : `call join_channel with the channel id shown in the Figma plugin UI`;
+      return (
+        `Figma edit: FIRST ${join} to pair with the running Figma plugin; no other tool works until paired. ` +
+        `Create nodes under a top-level frame, and call load_font_async before setting any text.`
+      );
+    },
+  },
+  "figma-express": {
+    name: "figma-express",
+    command: "npx",
+    // figma-mcp-express (Go binary via npx wrapper). Alternative to figma-edit with a
+    // compact batch-ops surface. Same plugin-bridge shape: needs its own Figma desktop
+    // plugin + a channel over localhost (port below). LICENSE is Commons Clause
+    // (non-commercial) — see FIGMA_EXPRESS_VERSION. Docs: docs/figma-edit.md.
+    args: ["-y", `figma-mcp-express@${FIGMA_EXPRESS_VERSION}`, "--port", "1994"],
+    description: "Figma (local plugin-bridge, alt): create/modify designs via compact batch ops — NON-COMMERCIAL license",
+    promptHint: () => {
+      const ch = process.env.FIGMA_CHANNEL;
+      const join = ch ? ` (channel "${ch}")` : " (see list_channels)";
+      return (
+        `Figma express: pair with the running plugin${join} first. To build, discover ops with ` +
+        `search_batch_ops(category) then get_batch_op_spec(op), and apply them with batch(ops:[...]).`
+      );
+    },
+  },
 };
 
 /** Env vars a capability declares as required but that are absent/empty right now. */
@@ -165,6 +233,35 @@ const WRITE_TOOLS: Record<string, Set<string>> = {
     "delete_release", "delete_tag", "fork_repo", "issue_write", "label_write", "milestone_write",
     "notification_write", "package_write", "pull_request_review_write", "pull_request_write",
     "sub_issue_write", "timetracking_write", "wiki_write",
+  ]),
+  // Local Figma plugin-bridge (CTF). Every tool that mutates the design is listed;
+  // reads (get_*, scan_text_nodes, get_svg, export_node_as_image, load_font_async) and
+  // the join_channel pairing call fall outside the set and stay allowed. These are
+  // gated because they change the designer's real Figma file (deletes included); the
+  // designer role pre-approves them in allowlist mode via a `figma-edit.*` allowWrite.
+  "figma-edit": new Set([
+    // creation
+    "create_rectangle", "create_frame", "create_text", "create_ellipse", "create_polygon",
+    "create_star", "group_nodes", "ungroup_nodes", "clone_node", "insert_child", "flatten_node",
+    "boolean_operation",
+    // modification
+    "set_fill_color", "set_stroke_color", "set_selection_colors", "move_node", "resize_node",
+    "delete_node", "set_corner_radius", "set_auto_layout", "set_effects", "set_effect_style_id",
+    "rotate_node", "set_node_properties", "reorder_node", "convert_to_frame", "set_gradient",
+    "set_image", "set_grid", "set_guide", "set_annotation", "rename_node",
+    // text
+    "set_text_content", "set_multiple_text_contents", "set_font_name", "set_font_size",
+    "set_font_weight", "set_letter_spacing", "set_line_height", "set_paragraph_spacing",
+    "set_text_case", "set_text_decoration", "set_text_style_id", "set_text_align",
+    // styles + components + variables
+    "create_text_style", "create_paint_style", "create_effect_style",
+    "create_component_instance", "create_component_from_node", "create_component_set",
+    "set_instance_variant", "set_reactions", "detach_instance",
+    "set_variable", "apply_variable_to_node", "switch_variable_mode",
+    // images, svg, pages, figjam
+    "set_image_fill", "replace_image_fill", "apply_image_transform", "set_image_filters", "set_svg",
+    "create_page", "delete_page", "rename_page", "set_current_page", "duplicate_page",
+    "create_sticky", "set_sticky_text", "create_shape_with_text", "create_connector", "create_section",
   ]),
 };
 
