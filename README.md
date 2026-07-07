@@ -15,6 +15,14 @@ an Anthropic API key), OpenAI, Gemini, or a **local model** via Ollama.
 > surface are in place; connectors and adapters are being filled in. See
 > [CHANGELOG.md](CHANGELOG.md).
 
+> ⚠️ **Data handling:** running a task sends the content it works on — repository code,
+> Jira/Confluence text, PR diffs, logs — to third-party **MCP endpoints** (GitHub, GitLab,
+> Atlassian, and others) and to the **model provider** you pick (Anthropic, OpenAI, Google,
+> or a local model). Those are external services that may store or process the data outside
+> your region. Do not run tasks on personal or regulated data without confirming it is
+> allowed under your obligations (e.g. GDPR, India's DPDP Act). See
+> [Safety & privacy](#safety--privacy).
+
 ---
 
 ## Why
@@ -138,6 +146,13 @@ Copy [.chho2.example.json](.chho2.example.json) to `.chho2.json` (per-repo) or
 
 ## Safety & privacy
 
+- **Third-party data flow (read this before regulated data).** Each capability sends the
+  content it operates on to an external MCP server — GitHub, GitLab, Atlassian, Figma — and
+  every model turn sends context to your chosen provider. These services may store or
+  process the data outside your data-residency region. A local model (Ollama) keeps the
+  model side on your machine, but the MCP connectors still reach their own services. Run
+  tasks on personal, customer, or regulated data only when that egress is permitted under
+  your obligations (e.g. GDPR, India's DPDP Act, sector rules).
 - Secrets live only in the environment / gitignored `.env`; the audit log redacts them.
 - Outward-facing writes (PRs, Jira comments, pushes) are gated by the permission
   policy and recorded in the audit log.

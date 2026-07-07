@@ -22,12 +22,16 @@
   "engines": {
     "node": ">=20"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsc -p tsconfig.json && node -e \"const{cpSync}=require('fs');cpSync('src/roles/builtin','dist/roles/builtin',{recursive:true})\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node bin/cli.js",
-    "roles": "tsx src/index.ts roles"
+    "roles": "tsx src/index.ts roles",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "ai-agent",
