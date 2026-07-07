@@ -27,11 +27,15 @@ Not wired.
 ### Live-verify figma-edit end to end
 
 The `figma-edit` capability (CTF) is verified at the layer chho2 owns: the MCP server
-starts and enumerates 92 tools over stdio, and write classification / the `figma-edit.*`
-allowlist wildcard are unit-tested. The full path (socket server + imported Figma plugin
-+ `join_channel` + real create/update in an open file) needs Figma Desktop and can only
-be verified on a workstation. Run `agent-chho2 run designer create-design …` per
-`docs/figma-edit.md` and record whether create/update quality is good enough to keep.
+starts and enumerates 92 tools over stdio (also via `agent-chho2 mcp figma-edit`), write
+classification / the `figma-edit.*` allowlist wildcard are unit-tested, and the CTF socket
+server runs (on bun). BLOCKED on Linux: the workstation runs `figma-linux` (unofficial
+snap), which cannot load local development plugins ("Unable to load code" / "error loading
+the plugin environment"), so `join_channel` + real create/update cannot be exercised here.
+This blocks CTF and FME plugin-bridges equally (client limitation, not our code). To
+finish: run `agent-chho2 run designer create-design …` per `docs/figma-edit.md` on
+official Figma Desktop (macOS/Windows), or via a Community-published bridge plugin, and
+record whether create/update quality is good enough to keep.
 
 ### Per-URL auth detection for interactive (OAuth) capabilities
 

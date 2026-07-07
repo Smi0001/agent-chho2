@@ -23,30 +23,96 @@ Three local processes cooperate:
 Nothing leaves your machine except the design operations Figma itself syncs to its
 cloud, which is the same file you already edit by hand.
 
-## One-time setup
+## Known limitation: Linux (figma-linux)
 
-Requirements: Node.js, and Figma Desktop.
+Figma ships no official Linux desktop app. The community `figma-linux` snap cannot load
+local **development** plugins — importing the plugin manifest fails with "An error
+occurred while loading the plugin environment / Unable to load code", regardless of the
+manifest or `code.js`. This blocks any local plugin-bridge (both `figma-edit` and
+`figma-express`) on Linux; it is a client limitation, not a chho2 or server issue. chho2's
+own side still verifies on Linux (`agent-chho2 mcp figma-edit` enumerates the tools, and
+the socket runs). To exercise create/update-design end to end, use official Figma Desktop
+on macOS or Windows, or a Community-published bridge plugin (published plugins load on
+figma-linux; local dev imports do not).
 
-1. Start the socket server and leave it running:
+## Windows E2E runbook (self-contained)
+
+Official Figma Desktop for Windows loads local dev plugins, so run the end-to-end check
+there. All commands are PowerShell.
+
+```powershell
+# 1. agent-chho2 (this feature branch) + a provider token
+git clone https://github.com/Smi0001/agent-chho2.git
+cd agent-chho2; git checkout feat/figma-designer; npm install
+# put CLAUDE_CODE_OAUTH_TOKEN=... in .env (same token used elsewhere)
+
+# 2. bun (the CTF socket server uses Bun.serve); restart the shell afterwards
+powershell -c "irm bun.sh/install.ps1 | iex"
+
+# 3. CTF socket + the full plugin (npm ships only the manifest, so copy code.js from the repo)
+mkdir $HOME\figma-bridge; cd $HOME\figma-bridge
+npm i claude-talk-to-figma-mcp@1.0.0
+git clone --depth 1 https://github.com/arinspunk/claude-talk-to-figma-mcp.git ctf-src
+mkdir plugin; copy ctf-src\src\claude_mcp_plugin\* plugin\
+# In plugin\manifest.json delete the line  "enablePrivatePluginApi": true,  (entitlement-gated)
+
+# 4. start the socket (leave this window open)
+bun node_modules\claude-talk-to-figma-mcp\dist\socket.js
+```
+
+Then in **Figma Desktop (Windows)**:
+1. Open a throwaway **Draft** design file (not Dev Mode).
+2. Quick Actions (`Ctrl + /`) -> `Import plugin from manifest` -> pick
+   `%USERPROFILE%\figma-bridge\plugin\manifest.json`.
+3. Quick Actions -> run `Claude Talk to Figma` -> copy the **channel id**.
+
+Finally, back in the agent-chho2 window:
+```powershell
+$env:FIGMA_CHANNEL="<channel-id-from-plugin>"
+npm run dev -- run designer create-design prompt="A login screen: logo, email + password fields, primary button, 'forgot password' link" --permissions allowlist
+```
+Expect a wireframe/structural layout to appear in the open file; polished visual design is
+out of scope. If import still errors, check Figma Desktop is updated and you are not in Dev
+Mode. The macOS steps are identical apart from paths and the bun install
+(`curl -fsSL https://bun.sh/install | bash`).
+
+## One-time setup (reference)
+
+Do this on **macOS or Windows Figma Desktop** (see the Linux limitation above).
+
+Requirements: Node.js, Figma Desktop, and **bun**. The socket server uses `Bun.serve`,
+so it needs the bun runtime (the MCP server that chho2 spawns runs on node and does not).
+Install bun with `curl -fsSL https://bun.sh/install | bash` (then add `~/.bun/bin` to
+PATH). The `figma-express` backend below needs no bun.
+
+1. Start the socket server and leave it running. Its published bin has no `node` shebang
+   and calls `Bun.serve`, so run it with bun rather than the bin name:
 
    ```bash
-   npx -p claude-talk-to-figma-mcp@1.0.0 claude-talk-to-figma-mcp-socket
+   mkdir -p ~/.figma-bridge && cd ~/.figma-bridge
+   npm i claude-talk-to-figma-mcp@1.0.0
+   bun node_modules/claude-talk-to-figma-mcp/dist/socket.js
    ```
 
-2. Import the plugin into Figma Desktop. The plugin manifest ships in the package;
-   fetch it once into a local folder you control:
+2. Get the plugin code. The npm package ships only the plugin `manifest.json`, not its
+   `code.js`/`ui.html` (Figma reports "Unable to load code" if you import from the
+   package). Fetch the full plugin folder from the repo instead:
 
    ```bash
-   npm pack claude-talk-to-figma-mcp@1.0.0   # then extract the tarball
+   tmp=$(mktemp -d)
+   git clone --depth 1 https://github.com/arinspunk/claude-talk-to-figma-mcp.git "$tmp/ctf"
+   mkdir -p ~/.figma-bridge/plugin
+   cp -f "$tmp/ctf/src/claude_mcp_plugin/"* ~/.figma-bridge/plugin/ && rm -rf "$tmp"
    ```
 
-   In Figma Desktop: Plugins → Development → Import plugin from manifest, and pick
-   `src/claude_mcp_plugin/manifest.json` from the extracted package. It imports as a
-   local development plugin (the plugin uses proposed/private Plugin APIs, so it is not
-   a published plugin).
+   In Figma Desktop, open a design file (import is unavailable from the home screen and
+   from Dev Mode; the plugin's editorType is figma/figjam). Use Quick Actions
+   (`Ctrl`/`Cmd` + `/`) → `Import plugin from manifest` and pick
+   `~/.figma-bridge/plugin/manifest.json`. It imports as a local development plugin (it
+   uses proposed/private Plugin APIs, so it is not a published plugin).
 
-3. Open the target file in Figma Desktop, run the plugin (Plugins → Development →
-   Claude Talk to Figma Plugin), and note the **channel id** it shows.
+3. Run the plugin: Quick Actions (`Ctrl`/`Cmd` + `/`) → `Claude Talk to Figma`, and note
+   the **channel id** it shows. Create designs in a throwaway Draft, not a real file.
 
 4. Optional: put the channel id in your environment so you do not paste it each run:
 
