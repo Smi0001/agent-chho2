@@ -31,7 +31,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node bin/cli.js",
     "roles": "tsx src/index.ts roles",
-    "prepublishOnly": "npm run build"
+    "test": "node --import tsx --test test/*.test.ts",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "keywords": [
     "ai-agent",
