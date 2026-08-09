@@ -26,11 +26,13 @@ servers. MCP tool annotations (`readOnly`/`destructive`) would be more robust, b
 not available in the SDK's `canUseTool` callback (only name + input). Revisit if the
 SDK surfaces annotations at decision time.
 
-### Live-verify the write-approval prompt
+### Implement promptTimeoutSeconds or drop it
 
-The gate's decision logic is unit-tested, but the interactive clack confirm has not run
-in a real TTY. Run a write task under `permissions.mode: ask` from a terminal to confirm
-the prompt fires and approve/deny works end to end.
+`permissions.promptTimeoutSeconds` (default 10) is dead config: `confirmWrite` never
+starts a timer, so a TTY prompt waits forever and the setting has no effect. The
+`onTimeout: "deny"` value is also indistinguishable from `"wait"` (both deny in the
+non-TTY branch, which only checks for `"proceed"`). Either wire a real timeout around
+the clack confirm honoring `onTimeout`, or remove the two settings from the schema.
 
 ### Native HTTP transport for remote MCP servers (future)
 
@@ -41,6 +43,18 @@ needs its MCP OAuth control flow (`SDKControlMcpAuthenticate*`) wired, and
 headless OAuth; until then the mcp-remote stdio bridge stays the default.
 
 ## Resolved decisions (kept for context)
+
+### Live-verify the write-approval prompt — DONE (2026-08-09)
+
+Verified on the qa `update-comment` task against a live test Jira comment, all under
+the default `permissions.mode: ask`:
+
+- TTY approve: clack prompt rendered, approved, comment updated in place (content
+  preserved, no duplicate).
+- TTY deny: prompt rendered, denied, `⛔ denied write` printed, no write reached Jira,
+  run ended gracefully with a FAIL report.
+- Non-TTY: write denied outright (`onTimeout: "wait"`), audit `result: skipped`.
+- Notifications (⏳ approval-needed, ✅ done, 🚨 error) all observed live in Slack.
 
 ### Role guardrail name alignment — DONE
 
