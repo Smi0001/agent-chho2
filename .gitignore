@@ -25,6 +25,9 @@ ss/
 # Local Claude Code config (kept personal, not shared)
 .claude/settings.json
 
+# Local chho2 runtime config (per-user; .chho2.example.json is the committed template)
+.chho2.json
+
 # OS / editor
 .DS_Store
 *.log
