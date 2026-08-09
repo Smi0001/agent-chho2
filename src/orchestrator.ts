@@ -120,7 +120,7 @@ export async function runTask({ role, task, inputs, config }: RunTaskArgs): Prom
     if (decision === "ask") {
       // Escalate: tell the user a run is waiting on their approval, then prompt.
       await notifier.send(
-        `${role.label} / ${task.label} — approval needed`,
+        `⏳ ${role.label} / ${task.label} — approval needed`,
         `Approval needed for outward write: ${action}`,
       );
       const approved = await confirmWrite(action, config.permissions);
@@ -197,7 +197,7 @@ export async function runTask({ role, task, inputs, config }: RunTaskArgs): Prom
     });
     console.log(`audit: ${audit.path}`);
     await notifier.send(
-      `${role.label} / ${task.label} — done`,
+      `✅ ${role.label} / ${task.label} — done`,
       `${truncate(result.text.trim() || "(no text returned)", 600)}\n\n` +
         `tokens ${u.total} · ${ms} ms · audit ${audit.path}`,
     );
@@ -209,7 +209,7 @@ export async function runTask({ role, task, inputs, config }: RunTaskArgs): Prom
     console.error(`\n✗ ${(err as Error).message}`);
     console.log(`audit: ${audit.path}`);
     await notifier.send(
-      `${role.label} / ${task.label} — ERROR`,
+      `🚨 ${role.label} / ${task.label} — ERROR`,
       `${(err as Error).message}\n\naudit ${audit.path}`,
     );
     process.exitCode = 1;
