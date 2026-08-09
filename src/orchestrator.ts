@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { Config } from "./config/schema.js";
 import type { Role, Task } from "./roles/types.js";
-import { confirm } from "@clack/prompts";
+import { select } from "@clack/prompts";
 import { resolveCapabilities, missingRequiredEnv, isOutwardWrite, canonicalToolName } from "./mcp/registry.js";
 import { unauthedInteractiveCaps } from "./mcp/auth.js";
 import { decide } from "./permissions/policy.js";
+import { approvedForRole, persistApproval } from "./permissions/approvals.js";
 import { createProvider } from "./providers/registry.js";
 import { AuditLogger, memSnapshot } from "./audit/logger.js";
 import { makeNotifier } from "./notify/notifier.js";
@@ -115,17 +116,22 @@ export async function runTask({ role, task, inputs, config }: RunTaskArgs): Prom
       });
       return { allow: true };
     }
-    const allowlist = [...role.guardrails.allowWrites, ...sessionGrants];
+    // Approvals the user persisted at an earlier prompt ("always for this role").
+    // They pre-approve in every mode: extend the allowlist, and skip the ask prompt.
+    const persisted = approvedForRole(role.id);
+    const allowlist = [...role.guardrails.allowWrites, ...sessionGrants, ...persisted];
     let decision = decide(config.permissions, { action, outward, summary: action }, allowlist);
+    if (decision === "ask" && persisted.includes(action)) decision = "allow";
     if (decision === "ask") {
       // Escalate: tell the user a run is waiting on their approval, then prompt.
       await notifier.send(
         `⏳ ${role.label} / ${task.label} — approval needed`,
         `Approval needed for outward write: ${action}`,
       );
-      const approved = await confirmWrite(action, config.permissions);
-      if (approved) sessionGrants.add(action);
-      decision = approved ? "allow" : "deny";
+      const choice = await confirmWrite(action, config.permissions);
+      if (choice !== "deny") sessionGrants.add(action);
+      if (choice === "always") persistApproval(role.id, action);
+      decision = choice === "deny" ? "deny" : "allow";
     }
     await audit.log({
       ts: isoNow(), role: role.id, task: task.id, action,
@@ -248,15 +254,47 @@ function buildGoal(task: Task, inputs: Record<string, string>): string {
   return lines.join("\n");
 }
 
-/** Prompt to approve an outward write. With no interactive terminal (e.g. CI), only
- *  proceed when the timeout policy says so; otherwise the write is denied. */
-async function confirmWrite(toolName: string, perms: Config["permissions"]): Promise<boolean> {
-  if (!process.stdin.isTTY) return perms.onTimeout === "proceed";
-  const res = await confirm({
-    message: `Allow outward write "${toolName}"? (adds it to this run's allowlist)`,
-    initialValue: false,
+export type WriteChoice = "once" | "always" | "deny";
+
+/** What a prompt timeout (or no-TTY run) resolves to under the onTimeout policy. */
+export function timeoutChoice(onTimeout: Config["permissions"]["onTimeout"]): WriteChoice {
+  return onTimeout === "proceed" ? "once" : "deny";
+}
+
+/** Prompt to approve an outward write: deny, allow for this run, or allow always for
+ *  this role (persisted to ~/.chho2/approvals.json). Under onTimeout "deny"/"proceed"
+ *  the prompt resolves that way after promptTimeoutSeconds; "wait" waits indefinitely.
+ *  With no interactive terminal (e.g. CI) there is no prompt: the timeout policy
+ *  decides immediately, and only "proceed" lets the write through. */
+async function confirmWrite(toolName: string, perms: Config["permissions"]): Promise<WriteChoice> {
+  if (!process.stdin.isTTY) return timeoutChoice(perms.onTimeout);
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer =
+    perms.onTimeout === "wait"
+      ? undefined
+      : setTimeout(() => {
+          timedOut = true;
+          controller.abort();
+        }, perms.promptTimeoutSeconds * 1000);
+  const res = await select<WriteChoice>({
+    message: `Allow outward write "${toolName}"?`,
+    options: [
+      { value: "deny", label: "No" },
+      { value: "once", label: "Yes, for this run" },
+      { value: "always", label: "Yes, always for this role (persisted)" },
+    ],
+    initialValue: "deny",
+    signal: controller.signal,
   });
-  return res === true;
+  if (timer) clearTimeout(timer);
+  if (timedOut) {
+    const choice = timeoutChoice(perms.onTimeout);
+    console.log(`  ◷ no answer in ${perms.promptTimeoutSeconds}s — ${choice === "deny" ? "denying" : "proceeding"} (permissions.onTimeout: ${perms.onTimeout})`);
+    return choice;
+  }
+  // A cancelled prompt (Ctrl+C) yields clack's cancel symbol, not a value: deny.
+  return res === "once" || res === "always" ? res : "deny";
 }
 
 function isoNow(): string {

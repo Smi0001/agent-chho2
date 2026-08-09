@@ -145,8 +145,12 @@ Copy [.chho2.example.json](.chho2.example.json) to `.chho2.json` (per-repo) or
 - `permissions.mode` — `ask` (default), `allowlist`, or `auto`. Outward writes (PRs,
   Jira comments, pushes) are gated: in `ask` mode they prompt for confirmation, in
   `allowlist` mode the tools on the role's `allowWrites` are pre-approved, and `auto`
-  proceeds (all still audited). In a non-interactive run a gated write is denied
-  unless `onTimeout` is set to `proceed`.
+  proceeds (all still audited). The prompt offers deny / allow for this run / allow
+  **always for this role** — "always" persists to `~/.chho2/approvals.json` and skips
+  future prompts for that role (edit or delete the file to revoke). With
+  `onTimeout: "deny"` or `"proceed"` an unanswered prompt resolves that way after
+  `promptTimeoutSeconds` (default 10); `"wait"` waits indefinitely. In a
+  non-interactive run a gated write is denied unless `onTimeout` is `proceed`.
 - `audit` — every action is appended to a **JSONL** log with tokens, cost, and
   memory usage.
 
