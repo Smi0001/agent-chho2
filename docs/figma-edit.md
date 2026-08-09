@@ -69,12 +69,38 @@ Then in **Figma Desktop (Windows)**:
 Finally, back in the agent-chho2 window:
 ```powershell
 $env:FIGMA_CHANNEL="<channel-id-from-plugin>"
-npm run dev -- run designer create-design prompt="A login screen: logo, email + password fields, primary button, 'forgot password' link" --permissions allowlist
+# pre-approve figma-edit writes: the designer role allowlists figma-edit.*, which takes
+# effect under permissions.mode allowlist (repo-local config file; ascii avoids a BOM)
+Set-Content .chho2.json '{ "permissions": { "mode": "allowlist" } }' -Encoding Ascii
+npm run dev -- run designer create-design prompt="A login screen: logo, email + password fields, primary button, 'forgot password' link"
 ```
 Expect a wireframe/structural layout to appear in the open file; polished visual design is
 out of scope. If import still errors, check Figma Desktop is updated and you are not in Dev
 Mode. The macOS steps are identical apart from paths and the bun install
 (`curl -fsSL https://bun.sh/install | bash`).
+
+## Split topology: agent on Linux, Figma on Windows
+
+The agent, the MCP server, and the socket server can all stay on a Linux machine (where
+the provider token lives); the Windows laptop needs only Figma Desktop and the plugin —
+no Node, bun, npm, or provider token. The plugin dials `ws://localhost:3055`, so forward
+that port to the Linux box over SSH (the client Windows 10/11 ships):
+
+```powershell
+# copy the staged plugin folder from the Linux machine
+mkdir "$env:USERPROFILE\figma-bridge"
+scp -r <user>@<linux-host>:.figma-bridge/plugin "$env:USERPROFILE\figma-bridge\plugin"
+
+# hold the tunnel open in its own window while working
+ssh -o ServerAliveInterval=30 -L 3055:localhost:3055 <user>@<linux-host>
+```
+
+Import and run the plugin as above, then run the designer tasks on the Linux side with
+`FIGMA_CHANNEL` set to the id the plugin shows. Caveats from live runs: the plugin's
+socket drops (WebSocket close 1006) when Figma is minimized, the plugin panel is closed,
+or the laptop sleeps — keep Figma visible and the laptop plugged in, reconnect with the
+plugin's Connect button, and expect a fresh channel id per session, so re-check it before
+each run.
 
 ## One-time setup (reference)
 
@@ -128,8 +154,11 @@ write tools, the designer role pre-approves the whole `figma-edit` server with a
 `permissions.mode: allowlist`; under the default `ask` mode you approve per tool.
 
 ```bash
-# allowlist mode: figma-edit writes are pre-approved for the designer role
-agent-chho2 run designer create-design prompt="A login screen: logo, email + password fields, primary button, 'forgot password' link" --permissions allowlist
+# allowlist mode: figma-edit writes are pre-approved for the designer role.
+# Set it in a repo-local .chho2.json (gitignored):
+echo '{ "permissions": { "mode": "allowlist" } }' > .chho2.json
+
+agent-chho2 run designer create-design prompt="A login screen: logo, email + password fields, primary button, 'forgot password' link"
 
 agent-chho2 run designer update-design figmaUrl="https://www.figma.com/file/…?node-id=…" prompt="Change the primary button to #E63946 and increase vertical spacing to 16px"
 ```

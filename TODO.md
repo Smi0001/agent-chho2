@@ -24,19 +24,6 @@ Verified: MIT at source (`sonnylazuardi`), but the published npm package fails t
 is the maintained, Claude-oriented fork of this same project, so cursor-talk adds nothing.
 Not wired.
 
-### Live-verify figma-edit end to end
-
-The `figma-edit` capability (CTF) is verified at the layer chho2 owns: the MCP server
-starts and enumerates 92 tools over stdio (also via `agent-chho2 mcp figma-edit`), write
-classification / the `figma-edit.*` allowlist wildcard are unit-tested, and the CTF socket
-server runs (on bun). BLOCKED on Linux: the workstation runs `figma-linux` (unofficial
-snap), which cannot load local development plugins ("Unable to load code" / "error loading
-the plugin environment"), so `join_channel` + real create/update cannot be exercised here.
-This blocks CTF and FME plugin-bridges equally (client limitation, not our code). To
-finish: run `agent-chho2 run designer create-design …` per `docs/figma-edit.md` on
-official Figma Desktop (macOS/Windows), or via a Community-published bridge plugin, and
-record whether create/update quality is good enough to keep.
-
 ### Per-URL auth detection for interactive (OAuth) capabilities
 
 The auth check (`src/mcp/auth.ts`) is version-agnostic: it scans `~/.mcp-auth` for any
@@ -76,6 +63,24 @@ needs its MCP OAuth control flow (`SDKControlMcpAuthenticate*`) wired, and
 headless OAuth; until then the mcp-remote stdio bridge stays the default.
 
 ## Resolved decisions (kept for context)
+
+### Live-verify figma-edit end to end — DONE (2026-08-10)
+
+Verified on official Figma Desktop (Windows) in a split topology: agent + MCP server +
+socket server on Linux, plugin on Windows over an SSH-forwarded port 3055 (runbook in
+`docs/figma-edit.md`). Both designer tasks passed against a Draft file under
+`permissions.mode: allowlist` with the `figma-edit.*` wildcard:
+
+- `create-design`: built a 390×844 login-screen wireframe (frame + 13 child nodes:
+  logo placeholder, heading, subtitle, labelled email/password fields, primary button,
+  forgot-password link) in ~102 s / 27 tool calls.
+- `update-design`: read the frame first, then added a checkbox + label row, reusing the
+  existing fill/stroke/margins/font instead of inventing styles.
+
+Quality verdict: wireframe-grade output as documented — good enough to keep. Two bugs
+found and fixed during verification: the runbook showed a `--permissions allowlist` CLI
+flag that does not exist (allowlist mode comes from `.chho2.json`; docs corrected), and
+`.chho2.json` was not gitignored.
 
 ### Live-verify the write-approval prompt — DONE (2026-08-09)
 
