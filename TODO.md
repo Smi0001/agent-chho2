@@ -4,6 +4,15 @@ Pending work and recorded decisions for agent-chho2.
 
 ## Pending
 
+### figma-express ships in the free npm package (decision 2026-08-10)
+
+v0.1.0 publishes from main with the Designer role and the `figma-express` registration
+included. chho2 does not bundle or sell figma-express — the capability runs
+`npx figma-mcp-express` on the end user's machine, and chho2 itself is free. The
+standing constraint below is unchanged and now binds the published package: chho2 must
+not be sold or offered as a paid product while `figma-express` is enabled. README and
+`docs/figma-edit.md` carry the user-facing non-commercial notice.
+
 ### figma-express — wired for non-commercial use (Commons Clause constraint)
 
 `figma-express` (`figma-mcp-express`, Go plugin-bridge, compact batch-ops surface) is

@@ -11,8 +11,10 @@ to Jira — and reports what it did.
 It is **provider-agnostic**: run it on Claude (your Claude Code subscription _or_
 an Anthropic API key), OpenAI, Gemini, or a **local model** via Ollama.
 
-> Status: **early scaffold (v0.1).** The architecture, role registry, and CLI
-> surface are in place; connectors and adapters are being filled in. See
+> Status: **v0.1 — working Dev, QA, and Designer roles.** MCP connectivity (GitHub,
+> GitLab, Gitea, Atlassian, Playwright, Chrome DevTools, Figma), the outward-write
+> permission gate, audit logs, and email/Slack notifications are live-verified; the
+> Designer role's create/update-design tasks are experimental. See
 > [CHANGELOG.md](CHANGELOG.md).
 
 > ⚠️ **Data handling:** running a task sends the content it works on — repository code,
@@ -33,8 +35,12 @@ Existing agents are single-purpose. छोटू is a **team of roles** behind o
   open a PR on GitHub/GitLab/Gitea.
 - **QA** — reproduce a Jira ticket in a real browser, capture evidence, comment
   the result back to Jira.
-- **…your role next** — roles are declarative YAML plugins. Adding *Design*
-  (Figma MCP) means dropping in a `design.role.yaml`; no core changes.
+- **Designer** *(experimental)* — read a Figma frame and compare it against the live
+  app, or create/update wireframe-grade designs from a prompt via a local plugin
+  bridge. The optional `figma-express` backend is licensed for **internal,
+  non-commercial use only** (Commons Clause) — see [docs/figma-edit.md](docs/figma-edit.md).
+- **…your role next** — roles are declarative YAML plugins: drop in a
+  `<role>.role.yaml`; no core changes.
 
 ## Architecture (at a glance)
 
