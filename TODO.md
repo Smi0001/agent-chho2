@@ -33,35 +33,12 @@ Verified: MIT at source (`sonnylazuardi`), but the published npm package fails t
 is the maintained, Claude-oriented fork of this same project, so cursor-talk adds nothing.
 Not wired.
 
-### Per-URL auth detection for interactive (OAuth) capabilities
-
-The auth check (`src/mcp/auth.ts`) is version-agnostic: it scans `~/.mcp-auth` for any
-cached token. It is not keyed by the specific server URL, so any cached token counts.
-Exact while only one mcp-remote server is configured (currently atlassian); becomes
-loose with a second (e.g. figma). Tighten by computing mcp-remote's per-URL key the
-way it does (`getServerUrlHash` of the server URL).
-
-### Persist interactive write-approvals across runs
-
-Approvals granted at the write-gate prompt are session-scoped (`sessionGrants` in the
-orchestrator, in-memory). Persist approved `<server>.<tool>` entries (e.g. to a
-user-level allowlist) so repeated runs do not re-prompt. Decide storage and scope
-(per-role? per-repo?) and how it interacts with `permissions.mode`.
-
 ### Write classification via tool annotations
 
 Classification uses explicit `WRITE_TOOLS` lists plus a name heuristic for uncurated
 servers. MCP tool annotations (`readOnly`/`destructive`) would be more robust, but are
 not available in the SDK's `canUseTool` callback (only name + input). Revisit if the
 SDK surfaces annotations at decision time.
-
-### Implement promptTimeoutSeconds or drop it
-
-`permissions.promptTimeoutSeconds` (default 10) is dead config: `confirmWrite` never
-starts a timer, so a TTY prompt waits forever and the setting has no effect. The
-`onTimeout: "deny"` value is also indistinguishable from `"wait"` (both deny in the
-non-TTY branch, which only checks for `"proceed"`). Either wire a real timeout around
-the clack confirm honoring `onTimeout`, or remove the two settings from the schema.
 
 ### Native HTTP transport for remote MCP servers (future)
 
@@ -72,6 +49,24 @@ needs its MCP OAuth control flow (`SDKControlMcpAuthenticate*`) wired, and
 headless OAuth; until then the mcp-remote stdio bridge stays the default.
 
 ## Resolved decisions (kept for context)
+
+### Backlog batch — DONE (2026-08-10)
+
+Three pending items implemented together (see CHANGELOG "Unreleased"):
+
+- **Per-URL auth detection**: `interactiveAuthCached` now matches the exact
+  `<md5(serverUrl)>_tokens.json` file across all `~/.mcp-auth` version dirs (mcp-remote's
+  internal cache-dir constant lags its npm version — the 0.1.37 release writes to
+  `mcp-remote-0.1.36/` — so dir names are scanned, never derived). Specs without a
+  remote URL keep the any-token fallback.
+- **Persisted write-approvals**: scope decision = per role, user-level
+  (`~/.chho2/approvals.json`). The prompt is a 3-way select (deny / this run / always
+  for this role); "always" pre-approves in every permission mode and skips the prompt
+  and notification. Revocation = edit or delete the file.
+- **promptTimeoutSeconds enforced**: `onTimeout: "deny" | "proceed"` arm a timer that
+  aborts the prompt (clack AbortSignal) and resolves accordingly; `"wait"` waits
+  indefinitely. Non-TTY behavior unchanged except `"deny"` and `"wait"` are now
+  documented equivalents there.
 
 ### Live-verify figma-edit end to end — DONE (2026-08-10)
 

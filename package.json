@@ -1,6 +1,6 @@
 {
   "name": "@smi0001/agent-chho2",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "छोटू — an interactive, role-based AI agent (Dev, QA, and more) that drives MCP servers (browser, Git hosting, Jira, Figma) to do real work. Provider-agnostic: Claude, OpenAI, Gemini, or local models.",
   "author": "Shammi Hans",
   "license": "Apache-2.0",

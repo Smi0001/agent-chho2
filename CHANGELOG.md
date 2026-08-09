@@ -7,7 +7,29 @@ adheres to [Semantic Versioning](https://semver.org/).
 The interactive CLI shows unread entries from this file as **What's New** when you
 upgrade (feature H).
 
-## [Unreleased]
+## [0.2.0] - 2026-08-10
+
+### Added
+- **Persisted write-approvals (per role).** The outward-write prompt now offers three
+  choices: deny, allow for this run, or **allow always for this role**. "Always" is
+  stored user-level in `~/.chho2/approvals.json` (keyed by role id), pre-approves the
+  action in every permission mode, and skips both the prompt and the approval-needed
+  notification on later runs. Revoke by editing or deleting that file. Session-only
+  approvals behave as before.
+- **`permissions.promptTimeoutSeconds` is now enforced.** Under `onTimeout: "deny"` or
+  `"proceed"` the approval prompt resolves that way after the configured seconds
+  (default 10); `"wait"` keeps the prompt open indefinitely. Non-interactive runs (no
+  TTY) still resolve immediately from the same policy, where only `"proceed"` lets the
+  write through.
+
+### Fixed
+- **Per-URL auth detection for OAuth capabilities.** The pre-flight check for
+  interactive-auth capabilities (atlassian, figma) now looks for the token cached for
+  that capability's exact server URL (mcp-remote keys token files by an md5 hash of the
+  URL), instead of accepting any cached token. A token for one server no longer masks a
+  missing login on another; cache-dir version names still do not matter.
+
+## [0.1.0] - 2026-08-10
 
 ### Added
 - **Figma design create/update via a local plugin-bridge** (milestone 2): added the
